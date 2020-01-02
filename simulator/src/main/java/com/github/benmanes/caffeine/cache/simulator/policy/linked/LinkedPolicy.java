@@ -86,14 +86,14 @@ public final class LinkedPolicy implements Policy {
     final int weight = event.weight();
     final long key = event.key();
     Node old = data.get(key);
-    admittor.record(key);
+    admittor.record(event);
     if (old == null) {
       policyStats.recordWeightedMiss(weight);
       if (weight > maximumSize) {
         policyStats.recordOperation();
         return;
       }
-      Node node = new Node(key, weight, sentinel);
+      Node node = new Node(event, weight, sentinel);
       data.put(key, node);
       currentSize += node.weight;
       node.appendToTail();
@@ -111,7 +111,7 @@ public final class LinkedPolicy implements Policy {
         Node victim = policy.findVictim(sentinel, policyStats);
         policyStats.recordEviction();
   
-        boolean admit = admittor.admit(candidate.key, victim.key);
+        boolean admit = admittor.admit(candidate.event, victim.event);
         if (admit) {
           evictEntry(victim);
         } else {
@@ -212,6 +212,7 @@ public final class LinkedPolicy implements Policy {
     Node next;
     long key;
     int weight;
+    AccessEvent event;
 
     /** Creates a new sentinel node. */
     public Node() {
@@ -219,13 +220,15 @@ public final class LinkedPolicy implements Policy {
       this.sentinel = this;
       this.prev = this;
       this.next = this;
+      this.event = null;
     }
 
     /** Creates a new, unlinked node. */
-    public Node(long key, int weight, Node sentinel) {
+    public Node(AccessEvent event, int weight, Node sentinel) {
       this.sentinel = sentinel;
-      this.key = key;
+      this.key = event.key();
       this.weight = weight;
+      this.event = event;
     }
 
     /** Appends the node to the tail of the list. */

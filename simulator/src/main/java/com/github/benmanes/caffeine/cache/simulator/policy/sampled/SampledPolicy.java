@@ -25,6 +25,8 @@ import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
+import com.github.benmanes.caffeine.cache.simulator.policy.AccessEvent;
+import com.google.common.collect.ImmutableSet;
 import org.apache.commons.lang3.StringUtils;
 
 import com.github.benmanes.caffeine.cache.simulator.BasicSettings;
@@ -51,7 +53,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
  *
  * @author ben.manes@gmail.com (Ben Manes)
  */
-public final class SampledPolicy implements KeyOnlyPolicy {
+public final class SampledPolicy implements Policy {
   final Long2ObjectMap<Node> data;
   final PolicyStats policyStats;
   final EvictionPolicy policy;
@@ -92,12 +94,18 @@ public final class SampledPolicy implements KeyOnlyPolicy {
   }
 
   @Override
-  public void record(long key) {
+  public Set<Characteristic> characteristics() {
+    return ImmutableSet.of();
+  }
+
+  @Override
+  public void record(AccessEvent event) {
+    long key = event.key();
     Node node = data.get(key);
-    admittor.record(key);
+    admittor.record(event);
     long now = ++tick;
     if (node == null) {
-      node = new Node(key, data.size(), now);
+      node = new Node(event, data.size(), now);
       policyStats.recordOperation();
       policyStats.recordMiss();
       table[node.index] = node;
@@ -120,7 +128,7 @@ public final class SampledPolicy implements KeyOnlyPolicy {
       Node victim = policy.select(sample, random, tick);
       policyStats.recordEviction();
 
-      if (admittor.admit(candidate.key, victim.key)) {
+      if (admittor.admit(candidate.event, victim.event)) {
         removeFromTable(victim);
         data.remove(victim.key);
       } else {
@@ -270,17 +278,19 @@ public final class SampledPolicy implements KeyOnlyPolicy {
 
   static final class Node {
     final long key;
+    final AccessEvent event;
     final long insertionTime;
 
     long accessTime;
     int frequency;
     int index;
 
-    public Node(long key, int index, long tick) {
+    public Node(AccessEvent event, int index, long tick) {
       this.insertionTime = tick;
       this.accessTime = tick;
       this.index = index;
-      this.key = key;
+      this.key = event.key();
+      this.event = event;
     }
 
     @Override

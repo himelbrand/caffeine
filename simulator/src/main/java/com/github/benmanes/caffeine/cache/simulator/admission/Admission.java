@@ -29,7 +29,8 @@ import com.typesafe.config.Config;
 @SuppressWarnings("ImmutableEnumChecker")
 public enum Admission {
   ALWAYS((config, policyStats) -> Admittor.always(), Function.identity()),
-  TINYLFU(TinyLfu::new, name -> name + "_TinyLfu");
+  TINYLFU(TinyLfu::new, name -> name + "_TinyLfu"),
+  LATINYLFU(LATinyLfu::new, name -> name + "_LATinyLfu");
 
   private final BiFunction<Config, PolicyStats, Admittor> factory;
   private final Function<String, String> formatter;
