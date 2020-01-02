@@ -15,34 +15,31 @@
  */
 package com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing;
 
-import static com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.HillClimber.Adaptation.Type.DECREASE_WINDOW;
-import static com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.HillClimber.Adaptation.Type.INCREASE_WINDOW;
-import static com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.HillClimber.QueueType.PROBATION;
-import static com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.HillClimber.QueueType.PROTECTED;
-import static com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.HillClimber.QueueType.WINDOW;
-import static com.google.common.base.Preconditions.checkState;
-import static java.util.Locale.US;
-import static java.util.stream.Collectors.toSet;
+import com.github.benmanes.caffeine.cache.simulator.BasicSettings;
+import com.github.benmanes.caffeine.cache.simulator.admission.Admittor;
+import com.github.benmanes.caffeine.cache.simulator.admission.LATinyLfu;
+import com.github.benmanes.caffeine.cache.simulator.policy.AccessEvent;
+import com.github.benmanes.caffeine.cache.simulator.policy.Policy;
+import com.github.benmanes.caffeine.cache.simulator.policy.PolicyStats;
+import com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.HillClimber.Adaptation;
+import com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.HillClimber.QueueType;
+import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableSet;
+import com.typesafe.config.Config;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-
-import com.github.benmanes.caffeine.cache.simulator.BasicSettings;
-import com.github.benmanes.caffeine.cache.simulator.admission.Admittor;
-import com.github.benmanes.caffeine.cache.simulator.admission.TinyLfu;
-import com.github.benmanes.caffeine.cache.simulator.policy.Policy;
-import com.github.benmanes.caffeine.cache.simulator.policy.Policy.KeyOnlyPolicy;
-import com.github.benmanes.caffeine.cache.simulator.policy.PolicyStats;
-import com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.HillClimber.Adaptation;
-import com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.HillClimber.QueueType;
-import com.google.common.base.MoreObjects;
-import com.typesafe.config.Config;
-
-import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import static com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.HillClimber.Adaptation.Type.DECREASE_WINDOW;
+import static com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.HillClimber.Adaptation.Type.INCREASE_WINDOW;
+import static com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.HillClimber.QueueType.*;
+import static com.google.common.base.Preconditions.checkState;
+import static java.util.Locale.US;
+import static java.util.stream.Collectors.toSet;
 
 /**
  * The Window TinyLfu algorithm where the size of the admission window is adjusted using the a hill
@@ -51,7 +48,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
  * @author ben.manes@gmail.com (Ben Manes)
  */
 @SuppressWarnings("PMD.TooManyFields")
-public final class HillClimberWindowTinyLfuPolicy implements KeyOnlyPolicy {
+public final class HillClimberWindowLATinyLfuPolicy implements Policy {
   private final double initialPercentMain;
   private final HillClimberType strategy;
   private final Long2ObjectMap<Node> data;
@@ -73,8 +70,8 @@ public final class HillClimberWindowTinyLfuPolicy implements KeyOnlyPolicy {
   static final boolean debug = false;
   static final boolean trace = false;
 
-  public HillClimberWindowTinyLfuPolicy(HillClimberType strategy, double percentMain,
-      HillClimberWindowTinyLfuSettings settings) {
+  public HillClimberWindowLATinyLfuPolicy(HillClimberType strategy, double percentMain,
+                                          HillClimberWindowTinyLfuSettings settings) {
 
     int maxMain = (int) (settings.maximumSize() * percentMain);
     this.maxProtected = (int) (maxMain * settings.percentMainProtected());
@@ -88,7 +85,7 @@ public final class HillClimberWindowTinyLfuPolicy implements KeyOnlyPolicy {
     this.strategy = strategy;
     this.initialPercentMain = percentMain;
     this.policyStats = new PolicyStats(getPolicyName());
-    this.admittor = new TinyLfu(settings.config(), policyStats);
+    this.admittor = new LATinyLfu(settings.config(), policyStats);
     this.climber = strategy.create(settings.config());
 
     printSegmentSizes();
@@ -106,7 +103,7 @@ public final class HillClimberWindowTinyLfuPolicy implements KeyOnlyPolicy {
     Set<Policy> policies = new HashSet<>();
     for (HillClimberType climber : settings.strategy()) {
       for (double percentMain : settings.percentMain()) {
-        policies.add(new HillClimberWindowTinyLfuPolicy(climber, percentMain, settings));
+        policies.add(new HillClimberWindowLATinyLfuPolicy(climber, percentMain, settings));
       }
     }
     return policies;
@@ -118,15 +115,21 @@ public final class HillClimberWindowTinyLfuPolicy implements KeyOnlyPolicy {
   }
 
   @Override
-  public void record(long key) {
+  public Set<Characteristic> characteristics() {
+    return ImmutableSet.of();
+  }
+
+  @Override
+  public void record(AccessEvent event) {
+    long key = event.key();
     boolean isFull = (data.size() >= maximumSize);
     policyStats.recordOperation();
     Node node = data.get(key);
-    admittor.record(key);
+    admittor.record(event);
 
     QueueType queue = null;
     if (node == null) {
-      onMiss(key);
+      onMiss(event);
       policyStats.recordMiss();
     } else {
       queue = node.queue;
@@ -147,8 +150,9 @@ public final class HillClimberWindowTinyLfuPolicy implements KeyOnlyPolicy {
   }
 
   /** Adds the entry to the admission window, evicting if necessary. */
-  private void onMiss(long key) {
-    Node node = new Node(key, WINDOW);
+  private void onMiss(AccessEvent event) {
+    long key = event.key();
+    Node node = new Node(event, WINDOW);
     node.appendToTail(headWindow);
     data.put(key, node);
     windowSize++;
@@ -203,7 +207,7 @@ public final class HillClimberWindowTinyLfuPolicy implements KeyOnlyPolicy {
 
     if (data.size() > maximumSize) {
       Node victim = headProbation.next;
-      Node evict = admittor.admit(candidate.key, victim.key) ? victim : candidate;
+      Node evict = admittor.admit(candidate.event, victim.event) ? victim : candidate;
       data.remove(evict.key);
       evict.remove();
 
@@ -314,7 +318,7 @@ public final class HillClimberWindowTinyLfuPolicy implements KeyOnlyPolicy {
   /** A node on the double-linked list. */
   static final class Node {
     final long key;
-
+    final AccessEvent event;
     QueueType queue;
     Node prev;
     Node next;
@@ -324,12 +328,14 @@ public final class HillClimberWindowTinyLfuPolicy implements KeyOnlyPolicy {
       this.key = Integer.MIN_VALUE;
       this.prev = this;
       this.next = this;
+      this.event = null;
     }
 
     /** Creates a new, unlinked node. */
-    public Node(long key, QueueType queue) {
+    public Node(AccessEvent event, QueueType queue) {
       this.queue = queue;
-      this.key = key;
+      this.key = event.key();
+      this.event = event;
     }
 
     public void moveToTail(Node head) {
