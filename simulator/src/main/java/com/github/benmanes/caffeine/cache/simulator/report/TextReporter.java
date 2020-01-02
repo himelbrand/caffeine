@@ -98,6 +98,8 @@ public abstract class TextReporter implements Reporter {
         return Comparator.comparingLong(PolicyStats::admissionCount);
       case "steps":
         return Comparator.comparingLong(PolicyStats::operationCount);
+      case "average penalty":
+        return Comparator.comparingDouble(PolicyStats::averagePenalty);
       case "time":
         return Comparator.comparingLong(stats -> stats.stopwatch().elapsed(TimeUnit.NANOSECONDS));
       default:
