@@ -84,12 +84,8 @@ public final class LATinyLfu implements Admittor.PenaltiesAdmittor {
     long victimKey = victim.key();
     long candidateFreq = sketch.frequency(candidateKey);
     long victimFreq = sketch.frequency(victimKey);
-    double candidateMP = candidate.missPenalty();
-    double candidateHP = candidate.hitPenalty();
-    double victimMP = victim.missPenalty();
-    double victimHP = victim.hitPenalty();
-    double candidateDelta = Math.abs(candidateMP - candidateHP);
-    double victimDelta = Math.abs(victimMP - victimHP);
+    double candidateDelta = penaltiesDelta(candidate);
+    double victimDelta = penaltiesDelta(victim);
     if (candidateDelta*candidateFreq > victimDelta*victimFreq) {
       policyStats.recordAdmission();
       return true;

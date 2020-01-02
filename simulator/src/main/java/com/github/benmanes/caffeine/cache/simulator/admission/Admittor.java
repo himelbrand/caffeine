@@ -59,14 +59,24 @@ public interface Admittor {
   }
 
   interface PenaltiesAdmittor extends Admittor {
+
     @Override
     void record(AccessEvent event);
+
     @Override
     boolean admit(AccessEvent candidate, AccessEvent victim);
+
     @Override
     default boolean admit(long candidateKey, long victimKey){return false;}
+
     @Override
     default void record(long key){}
+
+    default double penaltiesDelta(AccessEvent event) {
+      double eventMP = event.missPenalty();
+      double eventHP = event.hitPenalty();
+      return Math.abs(eventMP - eventHP);
+    }
   }
 }
 
