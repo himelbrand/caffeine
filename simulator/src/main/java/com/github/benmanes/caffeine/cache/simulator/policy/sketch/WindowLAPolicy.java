@@ -213,8 +213,6 @@ public final class WindowLAPolicy implements Policy {
     long windowSize = data.values().stream().filter(n -> headWindow.isHit(n.key())).count();
     long probationSize = data.values().stream().filter(n -> headProbation.isHit(n.key())).count();
     long protectedSize = data.values().stream().filter(n -> headProtected.isHit(n.key())).count();
-  System.out.println(probationSize);
-  System.out.println(protectedSize);
     checkState(windowSize == sizeWindow);
     checkState(protectedSize == sizeProtected);
     checkState(probationSize == data.size() - windowSize - protectedSize);

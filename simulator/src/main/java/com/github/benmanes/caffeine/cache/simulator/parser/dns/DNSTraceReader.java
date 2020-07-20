@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Omri Himelbrand. All Rights Reserved.
+ * Copyright 2020 Omri Himelbrand. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,15 +15,15 @@
  */
 package com.github.benmanes.caffeine.cache.simulator.parser.dns;
 
-    import com.github.benmanes.caffeine.cache.simulator.parser.TextTraceReader;
-    import com.github.benmanes.caffeine.cache.simulator.policy.AccessEvent;
-    import com.github.benmanes.caffeine.cache.simulator.policy.Policy.Characteristic;
-    import com.google.common.collect.ImmutableSet;
-    import com.google.common.hash.Hashing;
+import com.github.benmanes.caffeine.cache.simulator.parser.TextTraceReader;
+import com.github.benmanes.caffeine.cache.simulator.policy.AccessEvent;
+import com.github.benmanes.caffeine.cache.simulator.policy.Policy.Characteristic;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.hash.Hashing;
 
-    import java.io.IOException;
-    import java.util.Set;
-    import java.util.stream.Stream;
+import java.io.IOException;
+import java.util.Set;
+import java.util.stream.Stream;
 
 /**
  * A reader for the trace files of DNS lookup times. Traces & format can be found at: git repo
