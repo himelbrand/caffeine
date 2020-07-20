@@ -69,7 +69,9 @@ public final class WindowLAPolicy implements Policy {
 
   public WindowLAPolicy(double percentMain, WindowLASettings settings, double k,
       double eps, double reset) {
-    String name = String.format("sketch.WindowLATinyLfu (%.0f%%,k=%.2f,eps=%.3f)", 100 * (1.0d - percentMain),k,eps);
+    String name = String
+        .format("sketch.WindowLATinyLfu (%.0f%%,k=%.2f,eps=%.3f)", 100 * (1.0d - percentMain), k,
+            eps);
     this.policyStats = new PolicyStats(name);
     this.admittor = new LATinyLfu(settings.config(), policyStats);
     int maxMain = (int) (settings.maximumSize() * percentMain);
@@ -77,7 +79,6 @@ public final class WindowLAPolicy implements Policy {
     this.maxWindow = settings.maximumSize() - maxMain;
     this.data = new Long2ObjectOpenHashMap<>();
     this.maximumSize = settings.maximumSize();
-
     this.headProtected = new LRBBBlock(k, reset, eps, this.maxProtected);
     this.headProbation = new LRBBBlock(k, reset, eps, maxMain - this.maxProtected);
     this.headWindow = new LRBBBlock(k, reset, eps, this.maxWindow);
@@ -136,6 +137,7 @@ public final class WindowLAPolicy implements Policy {
     admittor.record(node.event());
 
     node.remove();
+    headProbation.remove(node.key());
     headProtected.addEntry(node);
 
     sizeProtected++;
@@ -164,19 +166,19 @@ public final class WindowLAPolicy implements Policy {
     if (sizeWindow <= maxWindow) {
       return;
     }
-      Node candidate = headWindow.findVictim();
-      sizeWindow--;
-      candidate.remove();
+    Node candidate = headWindow.findVictim();
+    sizeWindow--;
+    candidate.remove();
     headWindow.remove(candidate.key());
     headProbation.addEntry(candidate);
-      if (data.size() > maximumSize) {
-        Node victim = headProbation.findVictim();
-        Node evict = admittor.admit(candidate.event(), victim.event()) ? victim : candidate;
-        data.remove(evict.key());
-        evict.remove();
-        headProbation.remove(evict.key());
-        policyStats.recordEviction();
-      }
+    if (data.size() > maximumSize) {
+      Node victim = headProbation.findVictim();
+      Node evict = admittor.admit(candidate.event(), victim.event()) ? victim : candidate;
+      data.remove(evict.key());
+      evict.remove();
+      headProbation.remove(evict.key());
+      policyStats.recordEviction();
+    }
   }
 
   @Override
@@ -211,7 +213,8 @@ public final class WindowLAPolicy implements Policy {
     long windowSize = data.values().stream().filter(n -> headWindow.isHit(n.key())).count();
     long probationSize = data.values().stream().filter(n -> headProbation.isHit(n.key())).count();
     long protectedSize = data.values().stream().filter(n -> headProtected.isHit(n.key())).count();
-
+  System.out.println(probationSize);
+  System.out.println(protectedSize);
     checkState(windowSize == sizeWindow);
     checkState(protectedSize == sizeProtected);
     checkState(probationSize == data.size() - windowSize - protectedSize);

@@ -18,6 +18,7 @@ package com.github.benmanes.caffeine.cache.simulator.parser;
 import static java.util.Locale.US;
 import static java.util.stream.Collectors.toList;
 
+import com.github.benmanes.caffeine.cache.simulator.parser.dns.DNSTraceReader;
 import com.github.benmanes.caffeine.cache.simulator.parser.latency.LatencyTraceReader;
 import java.io.IOException;
 import java.util.List;
@@ -62,6 +63,7 @@ public enum TraceFormat {
   CAMELAB(CamelabTraceReader::new),
   CLIMB(ClimbTraceReader::new),
   CORDA(CordaTraceReader::new),
+  DNS(DNSTraceReader::new),
   GRADLE(GradleTraceReader::new),
   LATENCY(LatencyTraceReader::new),
   LIRS(LirsTraceReader::new),

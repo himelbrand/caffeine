@@ -166,6 +166,7 @@ public final class LRBBBlock {
   }
 
   private Node addToList(Node node, Node inSentinel) {
+    node.sentinel = inSentinel;
     data.put(node.key(), node);
     if (inSentinel.size > 0) {
       Node listNext = inSentinel.next;
@@ -187,7 +188,6 @@ public final class LRBBBlock {
     Node victim = null;
     double minRank = Double.MAX_VALUE;
     int maxSize = Integer.MAX_VALUE;
-
     for (Node currSentinel : lists) {
       if (currSentinel.next == currSentinel) {
         continue;
@@ -248,9 +248,9 @@ public final class LRBBBlock {
   /**
    * A node on the double-linked list.
    */
-  public final class Node {
+  public static final class Node {
 
-    final Node sentinel;
+    Node sentinel;
     int size;
     Node prev;
     Node next;
@@ -331,7 +331,6 @@ public final class LRBBBlock {
       prev.next = next;
       next.prev = prev;
       prev = next = null;
-      key = Long.MIN_VALUE;
       sentinel.totalBenefit -= this.event.delta();
     }
 

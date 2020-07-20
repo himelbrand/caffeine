@@ -13,41 +13,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.benmanes.caffeine.cache.simulator.parser.latency;
+package com.github.benmanes.caffeine.cache.simulator.parser.dns;
 
-import com.github.benmanes.caffeine.cache.simulator.parser.TextTraceReader;
-import com.github.benmanes.caffeine.cache.simulator.policy.AccessEvent;
-import com.github.benmanes.caffeine.cache.simulator.policy.Policy.Characteristic;
-import com.google.common.collect.ImmutableSet;
-import java.io.IOException;
-import java.math.BigInteger;
-import java.util.Set;
-import java.util.stream.Stream;
+    import com.github.benmanes.caffeine.cache.simulator.parser.TextTraceReader;
+    import com.github.benmanes.caffeine.cache.simulator.policy.AccessEvent;
+    import com.github.benmanes.caffeine.cache.simulator.policy.Policy.Characteristic;
+    import com.google.common.collect.ImmutableSet;
+    import com.google.common.hash.Hashing;
+
+    import java.io.IOException;
+    import java.util.Set;
+    import java.util.stream.Stream;
 
 /**
- * A reader for the trace files of mp-trace-maker. Traces & format can be found at: git repo
+ * A reader for the trace files of DNS lookup times. Traces & format can be found at: git repo
  * address
  *
  * @author himelbrand@gmail.com (Omri Himelbrand)
  */
-public final class LatencyTraceReader extends TextTraceReader {
+public final class DNSTraceReader extends TextTraceReader {
 
-  public LatencyTraceReader(String filePath) {
+  public DNSTraceReader(String filePath) {
     super(filePath);
   }
 
   @Override
   public Set<Characteristic> characteristics() {
     return ImmutableSet.of();
-  }
-
-  private long parseKey(String uuid) {
-    try {
-      return Long.parseLong(uuid);
-    }catch (Exception e) {
-      BigInteger num = new BigInteger(uuid);
-      return num.shiftRight(64).longValue() ^ num.longValue();
-    }
   }
 
   @Override
@@ -57,7 +49,7 @@ public final class LatencyTraceReader extends TextTraceReader {
         .map(
             split ->
                 AccessEvent.forKeyAndPenalties(
-                    parseKey(split[0]),
+                    Hashing.murmur3_128().hashUnencodedChars(split[0]).asLong(),
                     Double.parseDouble(split[1]),
                     Double.parseDouble(split[2])));
   }

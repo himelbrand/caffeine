@@ -50,7 +50,7 @@ public final class TableReporter extends TextReporter {
           String.format("%,d", policyStats.requestsWeight()),
           String.format("%.2f %%", 100 * policyStats.weightedHitRate()),
           String.format("%.2f", policyStats.averageMissPenalty()),
-          String.format("%.2f", policyStats.avergePenalty()),
+          String.format("%.2f", policyStats.averagePenalty()),
           steps(policyStats),
           policyStats.stopwatch().toString()
       };

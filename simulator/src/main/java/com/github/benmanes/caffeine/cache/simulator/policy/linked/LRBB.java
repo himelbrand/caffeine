@@ -57,6 +57,8 @@ public final class LRBB implements Policy {
 
   public LRBB(Admission admission, Config config, double k, double reset, double eps) {
     BasicSettings settings = new BasicSettings(config);
+    this.k = k;
+    this.eps = eps;
     this.policyStats = new PolicyStats(admission.format(getPolicyName()));
     this.admittor = admission.from(config, policyStats);
     this.maximumSize = settings.maximumSize();
@@ -69,8 +71,6 @@ public final class LRBB implements Policy {
     this.lastReset = System.nanoTime();
     this.reqCount = 0;
     this.currentSize = 0;
-    this.k = k;
-    this.eps = eps;
   }
 
   private String getPolicyName() {

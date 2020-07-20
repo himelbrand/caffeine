@@ -197,7 +197,7 @@ public final class PolicyStats {
     return (requestCount == 0) ? 0.0 : (double) operationCount / requestCount;
   }
 
-  public double avergePenalty() {
+  public double averagePenalty() {
     long requestCount = requestCount();
     return (requestCount == 0) ? 0.0 : totalPenalty() / requestCount;
   }

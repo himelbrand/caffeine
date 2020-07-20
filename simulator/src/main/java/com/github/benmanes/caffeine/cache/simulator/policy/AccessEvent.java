@@ -131,7 +131,7 @@ public class AccessEvent {
       this.hitPenalty = hitPenalty;
       this.missPenalty = missPenalty;
       checkArgument(hitPenalty >= 0);
-      checkArgument(missPenalty >= hitPenalty);
+      checkArgument(missPenalty >= 0);
     }
 
     @Override
