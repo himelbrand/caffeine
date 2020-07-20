@@ -18,6 +18,7 @@ package com.github.benmanes.caffeine.cache.simulator.parser;
 import static java.util.Locale.US;
 import static java.util.stream.Collectors.toList;
 
+import com.github.benmanes.caffeine.cache.simulator.parser.latency.LatencyTraceReader;
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
@@ -62,6 +63,7 @@ public enum TraceFormat {
   CLIMB(ClimbTraceReader::new),
   CORDA(CordaTraceReader::new),
   GRADLE(GradleTraceReader::new),
+  LATENCY(LatencyTraceReader::new),
   LIRS(LirsTraceReader::new),
   OUTBRAIN(OutbrainTraceReader::new),
   SCARAB(ScarabTraceReader::new),

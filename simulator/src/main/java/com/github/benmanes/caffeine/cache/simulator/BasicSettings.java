@@ -20,15 +20,15 @@ import static java.util.Locale.US;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toSet;
 
-import java.util.List;
-import java.util.Set;
-
 import com.github.benmanes.caffeine.cache.simulator.admission.Admission;
 import com.github.benmanes.caffeine.cache.simulator.membership.FilterType;
 import com.github.benmanes.caffeine.cache.simulator.parser.TraceFormat;
 import com.github.benmanes.caffeine.cache.simulator.report.ReportFormat;
 import com.google.common.base.CaseFormat;
 import com.typesafe.config.Config;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * The simulator's configuration. A policy can extend this class as a convenient way to extract
@@ -74,6 +74,10 @@ public class BasicSettings {
 
   public TinyLfuSettings tinyLfu() {
     return new TinyLfuSettings();
+  }
+
+  public LRBBSettings LRBB() {
+    return new LRBBSettings();
   }
 
   public int maximumSize() {
@@ -129,6 +133,37 @@ public class BasicSettings {
     }
     public double fpp() {
       return config().getDouble("membership.fpp");
+    }
+  }
+
+  public final  class LRBBSettings {
+    public Set<Double> reset() {
+      if(config().hasPath("lrbb.reset")){
+        Set<Double> h = new HashSet<>(config().getDoubleList("lrbb.reset"));
+        return h;
+      }else{
+        Set<Double> h = new HashSet<>();
+        h.add(1.0);
+        return h;
+      }
+    }
+    public Set<Double> k(){
+      if(config().hasPath("lrbb.k")){
+        return new HashSet<>(config().getDoubleList("lrbb.k"));
+      }else{
+        Set<Double> h = new HashSet<>();
+        h.add(1.0);
+        return h;
+      }
+    }
+    public Set<Double> epsilon() {
+      if(config().hasPath("lrbb.epsilon")){
+        return new HashSet<>(config().getDoubleList("lrbb.epsilon"));
+      }else{
+        Set<Double> h = new HashSet<>();
+        h.add(0.09);
+        return h;
+      }
     }
   }
 

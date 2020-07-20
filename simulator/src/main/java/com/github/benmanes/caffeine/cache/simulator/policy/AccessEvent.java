@@ -17,9 +17,8 @@ package com.github.benmanes.caffeine.cache.simulator.policy;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import java.util.Objects;
-
 import com.google.common.base.MoreObjects;
+import java.util.Objects;
 
 /**
  * The key and metadata for accessing a cache.
@@ -53,6 +52,12 @@ public class AccessEvent {
     return 0;
   }
 
+  /** Returns the delta of the penalties for this entry*/
+  public double delta() {
+    double eventMP = this.missPenalty();
+    double eventHP = this.hitPenalty();
+    return eventMP - eventHP;
+  }
   @Override
   public boolean equals(Object o) {
     if (o == this) {
