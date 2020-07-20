@@ -34,21 +34,11 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * An adaption of the TinyLfu policy that adds a temporal admission window. This window allows the
- * policy to have a high hit rate when entries exhibit a high temporal / low frequency pattern.
- * <p>
- * A new entry starts in the window and remains there as long as it has high temporal locality.
- * Eventually an entry will slip from the end of the window onto the front of the main queue. If the
- * main queue is already full, then a historic frequency filter determines whether to evict the
- * newly admitted entry or the victim entry chosen by main queue's policy. This process ensures that
- * the entries in the main queue have both a high recency and frequency. The window space uses LRU
- * and the main uses Segmented LRU.
- * <p>
- * Scan resistance is achieved by means of the window. Transient data will pass through from the
- * window and not be accepted into the main queue. Responsiveness is maintained by the main queue's
- * LRU and the TinyLfu's reset operation so that expired long term entries fade away.
+ * An access time or latency aware implementation of the WindowTinyLFU policy.
+ * Using LRBB blocks instead of LRU building blocks, can be adjusted using the config file,
+ * as to make the PROBATION and PROTECTED function as LRU.
  *
- * @author ben.manes@gmail.com (Ben Manes)
+ * @author himelbrand@gmail.com (Omri Himelbrand)
  */
 public final class WindowLAPolicy implements Policy {
 
