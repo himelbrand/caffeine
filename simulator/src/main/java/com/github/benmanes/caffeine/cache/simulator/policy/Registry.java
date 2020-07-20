@@ -22,6 +22,7 @@ import static java.util.stream.Collectors.toSet;
 
 import com.github.benmanes.caffeine.cache.simulator.policy.linked.LRBB;
 import com.github.benmanes.caffeine.cache.simulator.policy.sketch.WindowLAPolicy;
+import com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.LAHillClimberWindowPolicy;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -171,6 +172,8 @@ public final class Registry {
     factories.put("sketch.TinyCache_GhostCache", TinyCacheWithGhostCachePolicy::policies);
 
     factories.put("sketch.WindowLA", WindowLAPolicy::policies);
+    factories.put("sketch.LAHillClimberWindow", LAHillClimberWindowPolicy::policies);
+
   }
 
   private void registerIrr() {
