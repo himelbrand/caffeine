@@ -271,8 +271,6 @@ public final class LRBB implements Policy {
     long lastOp;
     long lastTouch;
     double totalBenefit;
-    double minBenefit;
-    Node suspect;
 
     /**
      * Creates a new sentinel node.
@@ -286,7 +284,6 @@ public final class LRBB implements Policy {
       this.lastOp = 1;
       this.size = 0;
       this.totalBenefit = 0;
-      this.minBenefit = Double.MAX_VALUE;
     }
 
     /**

@@ -202,7 +202,7 @@ public final class PolicyStats {
     return (requestCount == 0) ? 0.0 : totalPenalty() / requestCount;
   }
 
-  public double avergeHitPenalty() {
+  public double averageHitPenalty() {
     return (hitCount == 0) ? 0.0 : hitPenalty / hitCount;
   }
 
