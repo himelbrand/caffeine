@@ -47,11 +47,11 @@ public final class LRBB implements Policy {
   final Admittor admittor;
   final int maximumSize;
   private final int resetCount;
+  private final double eps;
+  private final double k;
+  private final int maxLists;
   private int reqCount;
-  private int maxLists;
   private int currOp;
-  private double eps;
-  private double k;
   private long lastReset;
   private int currentSize;
 
@@ -84,9 +84,9 @@ public final class LRBB implements Policy {
     BasicSettings settings = new BasicSettings(config);
     Set<Policy> policies = new HashSet<>();
     for (Admission admission : settings.admission()) {
-      for (double k : settings.LRBB().k()) {
-        for (double reset : settings.LRBB().reset()) {
-          for (double eps : settings.LRBB().epsilon()) {
+      for (double k : settings.lrbb().kValues()) {
+        for (double reset : settings.lrbb().reset()) {
+          for (double eps : settings.lrbb().epsilon()) {
             policies.add(new LRBB(admission, config, k, reset, eps));
           }
         }

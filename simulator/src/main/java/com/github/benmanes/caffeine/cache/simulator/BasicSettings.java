@@ -76,7 +76,7 @@ public class BasicSettings {
     return new TinyLfuSettings();
   }
 
-  public LRBBSettings LRBB() {
+  public LRBBSettings lrbb() {
     return new LRBBSettings();
   }
 
@@ -138,16 +138,16 @@ public class BasicSettings {
 
   public final  class LRBBSettings {
     public Set<Double> reset() {
+      Set<Double> h;
       if(config().hasPath("lrbb.reset")){
-        Set<Double> h = new HashSet<>(config().getDoubleList("lrbb.reset"));
-        return h;
+        h = new HashSet<>(config().getDoubleList("lrbb.reset"));
       }else{
-        Set<Double> h = new HashSet<>();
+        h = new HashSet<>();
         h.add(1.0);
-        return h;
       }
+      return h;
     }
-    public Set<Double> k(){
+    public Set<Double> kValues(){
       if(config().hasPath("lrbb.k")){
         return new HashSet<>(config().getDoubleList("lrbb.k"));
       }else{

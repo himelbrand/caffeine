@@ -34,9 +34,9 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * An access time or latency aware implementation of the WindowTinyLFU policy.
- * Using LRBB blocks instead of LRU building blocks, can be adjusted using the config file,
- * as to make the PROBATION and PROTECTED function as LRU.
+ * An access time or latency aware implementation of the WindowTinyLFU policy. Using LRBB blocks
+ * instead of LRU building blocks, can be adjusted using the config file, as to make the PROBATION
+ * and PROTECTED function as LRU.
  *
  * @author himelbrand@gmail.com (Omri Himelbrand)
  */
@@ -70,9 +70,9 @@ public final class WindowLAPolicy implements Policy {
     this.data = new Long2ObjectOpenHashMap<>();
     this.maximumSize = settings.maximumSize();
     boolean asLRU = settings.asLRU();
-    this.headProtected = new LRBBBlock(k, reset, eps, this.maxProtected,asLRU);
-    this.headProbation = new LRBBBlock(k, reset, eps, maxMain - this.maxProtected,asLRU);
-    this.headWindow = new LRBBBlock(k, reset, eps, this.maxWindow,false);
+    this.headProtected = new LRBBBlock(k, reset, eps, this.maxProtected, asLRU);
+    this.headProbation = new LRBBBlock(k, reset, eps, maxMain - this.maxProtected, asLRU);
+    this.headWindow = new LRBBBlock(k, reset, eps, this.maxWindow, false);
   }
 
   /**
@@ -82,7 +82,7 @@ public final class WindowLAPolicy implements Policy {
     WindowLASettings settings = new WindowLASettings(config);
     return settings.percentMain().stream()
         .map(percentMain ->
-            settings.k().stream()
+            settings.kValues().stream()
                 .map(k ->
                     settings.reset().stream()
                         .map(reset ->
@@ -229,18 +229,20 @@ public final class WindowLAPolicy implements Policy {
       return config().getDouble("la-window.percent-main-protected");
     }
 
-    public List<Double> k() {
-      return config().getDoubleList("lrbb.k");
+    public List<Double> kValues() {
+      return config().getDoubleList("la-window.lrbb.k");
     }
 
     public List<Double> epsilon() {
-      return config().getDoubleList("lrbb.epsilon");
+      return config().getDoubleList("la-window.lrbb.epsilon");
     }
 
     public List<Double> reset() {
-      return config().getDoubleList("lrbb.reset");
+      return config().getDoubleList("la-window.lrbb.reset");
     }
 
-    public boolean asLRU() { return config().getBoolean("la-window.as-lru");}
+    public boolean asLRU() {
+      return config().getBoolean("la-window.as-lru");
+    }
   }
 }

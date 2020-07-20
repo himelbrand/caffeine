@@ -43,8 +43,8 @@ import java.util.Set;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * The WindowLA algorithm where the size of the admission window is adjusted using the a latency aware
- * hill climbing algorithm.
+ * The WindowLA algorithm where the size of the admission window is adjusted using the a latency
+ * aware hill climbing algorithm.
  *
  * @author himelbrand@gmail.com (Omri Himelbrand)
  */
@@ -71,11 +71,6 @@ public final class LAHillClimberWindowPolicy implements Policy {
 
   static final boolean debug = false;
   static final boolean trace = false;
-  long resetCount;
-  long maxLists;
-  long currOp;
-  long lastReset;
-  long reqCount;
   double k;
   double eps;
 
@@ -89,20 +84,15 @@ public final class LAHillClimberWindowPolicy implements Policy {
     this.data = new Long2ObjectOpenHashMap<>();
     this.maximumSize = settings.maximumSize();
     boolean asLRU = settings.asLRU();
-    this.headProtected = new LRBBBlock(k, reset, eps, this.maxProtected,asLRU);
-    this.headProbation = new LRBBBlock(k, reset, eps, maxMain - this.maxProtected,asLRU);
-    this.headWindow = new LRBBBlock(k, reset, eps, this.maxWindow,false);
+    this.headProtected = new LRBBBlock(k, reset, eps, this.maxProtected, asLRU);
+    this.headProbation = new LRBBBlock(k, reset, eps, maxMain - this.maxProtected, asLRU);
+    this.headWindow = new LRBBBlock(k, reset, eps, this.maxWindow, false);
 
     this.strategy = strategy;
     this.initialPercentMain = percentMain;
     this.policyStats = new PolicyStats(getPolicyName());
     this.admittor = new LATinyLfu(settings.config(), policyStats);
     this.climber = strategy.create(settings.config());
-    this.currOp = 1;
-    this.resetCount = (int) (reset * maximumSize);
-    this.maxLists = (int) Math.round(2.0 / eps);
-    this.lastReset = System.nanoTime();
-    this.reqCount = 0;
     this.k = k;
     this.eps = eps;
     printSegmentSizes();
@@ -124,7 +114,7 @@ public final class LAHillClimberWindowPolicy implements Policy {
     Set<Policy> policies = new HashSet<>();
     for (LAHillClimberType climber : settings.strategy()) {
       for (double percentMain : settings.percentMain()) {
-        for (double k : settings.k()) {
+        for (double k : settings.kValues()) {
           for (double r : settings.reset()) {
             for (double e : settings.epsilon()) {
               policies
@@ -384,7 +374,7 @@ public final class LAHillClimberWindowPolicy implements Policy {
           .collect(toSet());
     }
 
-    public List<Double> k() {
+    public List<Double> kValues() {
       return config().getDoubleList("la-hill-climber-window.lrbb.k");
     }
 

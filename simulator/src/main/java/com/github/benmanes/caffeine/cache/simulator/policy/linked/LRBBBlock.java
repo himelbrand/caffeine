@@ -36,11 +36,11 @@ public final class LRBBBlock {
   final List<Node> lists;
   final int maximumSize;
   private final int resetCount;
+  private final int maxLists;
+  private final double eps;
+  private final double k;
   private int reqCount;
-  private int maxLists;
   private int currOp;
-  private double eps;
-  private double k;
   private long lastReset;
   private int currentSize;
 
