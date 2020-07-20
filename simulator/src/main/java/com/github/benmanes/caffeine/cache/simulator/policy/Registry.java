@@ -20,6 +20,8 @@ import static java.util.Locale.US;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 
+import com.github.benmanes.caffeine.cache.simulator.policy.linked.LRBB;
+import com.github.benmanes.caffeine.cache.simulator.policy.sketch.WindowLAPolicy;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -136,6 +138,7 @@ public final class Registry {
     factories.put("linked.SegmentedLru", SegmentedLruPolicy::policies);
     factories.put("linked.Multiqueue", MultiQueuePolicy::policies);
     factories.put("linked.S4Lru", S4LruPolicy::policies);
+    factories.put("linked.lrbb", LRBB::policies);
   }
 
   private void registerSampled() {
@@ -166,6 +169,8 @@ public final class Registry {
     factories.put("sketch.TinyCache", TinyCachePolicy::policies);
     factories.put("sketch.WindowTinyCache", WindowTinyCachePolicy::policies);
     factories.put("sketch.TinyCache_GhostCache", TinyCacheWithGhostCachePolicy::policies);
+
+    factories.put("sketch.WindowLA", WindowLAPolicy::policies);
   }
 
   private void registerIrr() {

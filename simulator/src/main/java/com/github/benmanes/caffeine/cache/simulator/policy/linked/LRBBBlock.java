@@ -114,7 +114,7 @@ public final class LRBBBlock {
   /**
    * Evicts while the map exceeds the maximum capacity.
    */
-  private List<Long> evict(AccessEvent candidate) {
+  public List<Long> evict(AccessEvent candidate) {
     int listIndex;
     Node victim;
     Node inSentinel;
@@ -146,7 +146,7 @@ public final class LRBBBlock {
     }
   }
 
-  private void addToList(AccessEvent candidate, Node inSentinel) {
+  private Node addToList(AccessEvent candidate, Node inSentinel) {
     Node node = new Node(candidate, candidate.weight(), inSentinel);
 
     data.put((long) candidate.key(), node);
@@ -162,9 +162,27 @@ public final class LRBBBlock {
       node.appendToTail();
     }
     node.updateOp(currOp++);
+    return node;
   }
 
-  private Node findVictim() {
+  private Node addToList(Node node, Node inSentinel) {
+    data.put(node.key(), node);
+    if (inSentinel.size > 0) {
+      Node listNext = inSentinel.next;
+      if (listNext.event.delta() * Math.pow((double) currOp - listNext.lastOp, -k) > node.event
+          .delta()) {
+        node.appendToHead();
+      } else {
+        node.appendToTail();
+      }
+    } else {
+      node.appendToTail();
+    }
+    node.updateOp(currOp++);
+    return node;
+  }
+
+  public Node findVictim() {
     double rank;
     Node victim = null;
     double minRank = Double.MAX_VALUE;
@@ -191,6 +209,23 @@ public final class LRBBBlock {
     }
     return victim;
   }
+  public void remove(long key){
+    data.remove(key);
+  }
+
+  public Node addEntry(AccessEvent event){
+    int listIndex = findList(event);
+    return addToList(event,lists.get(listIndex));
+  }
+
+  public Node addEntry(Node node){
+    int listIndex = findList(node.event());
+    return addToList(node,lists.get(listIndex));
+  }
+
+  public boolean isHit(long key){
+    return data.containsKey(key);
+  }
 
   List<Long> onAccess(Node node) {
     Node head = node.sentinel;
@@ -213,7 +248,7 @@ public final class LRBBBlock {
   /**
    * A node on the double-linked list.
    */
-  static final class Node {
+  public final class Node {
 
     final Node sentinel;
     int size;
@@ -293,9 +328,6 @@ public final class LRBBBlock {
      */
     public void remove() {
       sentinel.size -= 1;
-      if (this == sentinel) {
-        System.out.println(toString());
-      }
       prev.next = next;
       next.prev = prev;
       prev = next = null;
@@ -351,6 +383,14 @@ public final class LRBBBlock {
     public void resetOp() {
       lastOp = Math.max(1, lastOp >> 1);
       lastTouch = System.nanoTime();
+    }
+
+    public AccessEvent event(){
+      return this.event;
+    }
+
+    public long key(){
+      return this.key;
     }
 
     public double avgBenefit() {
