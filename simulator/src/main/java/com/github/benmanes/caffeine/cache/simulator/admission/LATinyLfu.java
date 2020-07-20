@@ -29,11 +29,13 @@ import com.github.benmanes.caffeine.cache.simulator.policy.PolicyStats;
 import com.typesafe.config.Config;
 
 /**
- * Admits new entries based on the estimated frequency of its historic use and access times recorded.
+ * Admits new entries based on the estimated frequency of its historic use and access times
+ * recorded.
  *
  * @author himelbrand@gmail.com (Omri Himelbrand)
  */
 public final class LATinyLfu implements Admittor.PenaltiesAdmittor {
+
   private final PolicyStats policyStats;
   private final Frequency sketch;
 

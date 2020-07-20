@@ -25,8 +25,8 @@ import java.util.List;
 
 /**
  * A cache that uses multiple linked lists, each holding entries with close range of benefit to
- * utilize access times to create a simple "latency aware" replacement algorithms.
- * This is a building block to be used by other policies, just like LRU is being used as a building block.
+ * utilize access times to create a simple "latency aware" replacement algorithms. This is a
+ * building block to be used by other policies, just like LRU is being used as a building block.
  *
  * @author himelbrand@gmail.com (Omri Himelbrand)
  */
@@ -138,13 +138,13 @@ public final class LRBBBlock {
         evictions.add(currKey);
       }
       return evictions;
-  } else {
-    listIndex = findList(candidate);
-    inSentinel = lists.get(listIndex);
-    addToList(candidate, inSentinel);
-    return new ArrayList<>();
+    } else {
+      listIndex = findList(candidate);
+      inSentinel = lists.get(listIndex);
+      addToList(candidate, inSentinel);
+      return new ArrayList<>();
+    }
   }
-}
 
   private void addToList(AccessEvent candidate, Node inSentinel) {
     Node node = new Node(candidate, candidate.weight(), inSentinel);
@@ -210,165 +210,165 @@ public final class LRBBBlock {
     }
   }
 
-/**
- * A node on the double-linked list.
- */
-static final class Node {
-
-  final Node sentinel;
-  int size;
-  Node prev;
-  Node next;
-  long key;
-  int weight;
-  AccessEvent event;
-  long lastOp;
-  long lastTouch;
-  double totalBenefit;
-
   /**
-   * Creates a new sentinel node.
+   * A node on the double-linked list.
    */
-  public Node() {
-    this.key = Long.MIN_VALUE;
-    this.sentinel = this;
-    this.prev = this;
-    this.next = this;
-    this.event = null;
-    this.lastOp = 1;
-    this.size = 0;
-    this.totalBenefit = 0;
-  }
+  static final class Node {
 
-  /**
-   * Creates a new, unlinked node.
-   */
-  public Node(AccessEvent event, int weight, Node sentinel) {
-    this.sentinel = sentinel;
-    this.key = event.key();
-    this.weight = weight;
-    this.event = event;
-    this.lastOp = 1;
-  }
+    final Node sentinel;
+    int size;
+    Node prev;
+    Node next;
+    long key;
+    int weight;
+    AccessEvent event;
+    long lastOp;
+    long lastTouch;
+    double totalBenefit;
 
-  /**
-   * Appends the node to the tail of the list.
-   */
-  public void appendToTail() {
-    Node tail = sentinel.prev;
-    sentinel.prev = this;
-    tail.next = this;
-    next = sentinel;
-    prev = tail;
-    this.sentinel.size += 1;
-    sentinel.totalBenefit += this.event.delta();
-  }
-
-  public void appendToHead() {
-    Node head = sentinel.next;
-    sentinel.next = this;
-    head.prev = this;
-    next = head;
-    prev = sentinel;
-    sentinel.size += 1;
-    sentinel.totalBenefit += this.event.delta();
-  }
-
-
-  /**
-   * Appends the node to the tail of the list.
-   */
-  public void appendToTail(long op) {
-    Node tail = sentinel.prev;
-    sentinel.prev = this;
-    tail.next = this;
-    next = sentinel;
-    prev = tail;
-    lastOp = op;
-    lastTouch = System.nanoTime();
-  }
-
-  /**
-   * Removes the node from the list.
-   */
-  public void remove() {
-    sentinel.size -= 1;
-    if (this == sentinel) {
-      System.out.println(toString());
+    /**
+     * Creates a new sentinel node.
+     */
+    public Node() {
+      this.key = Long.MIN_VALUE;
+      this.sentinel = this;
+      this.prev = this;
+      this.next = this;
+      this.event = null;
+      this.lastOp = 1;
+      this.size = 0;
+      this.totalBenefit = 0;
     }
-    prev.next = next;
-    next.prev = prev;
-    prev = next = null;
-    key = Long.MIN_VALUE;
-    sentinel.totalBenefit -= this.event.delta();
+
+    /**
+     * Creates a new, unlinked node.
+     */
+    public Node(AccessEvent event, int weight, Node sentinel) {
+      this.sentinel = sentinel;
+      this.key = event.key();
+      this.weight = weight;
+      this.event = event;
+      this.lastOp = 1;
+    }
+
+    /**
+     * Appends the node to the tail of the list.
+     */
+    public void appendToTail() {
+      Node tail = sentinel.prev;
+      sentinel.prev = this;
+      tail.next = this;
+      next = sentinel;
+      prev = tail;
+      this.sentinel.size += 1;
+      sentinel.totalBenefit += this.event.delta();
+    }
+
+    public void appendToHead() {
+      Node head = sentinel.next;
+      sentinel.next = this;
+      head.prev = this;
+      next = head;
+      prev = sentinel;
+      sentinel.size += 1;
+      sentinel.totalBenefit += this.event.delta();
+    }
+
+
+    /**
+     * Appends the node to the tail of the list.
+     */
+    public void appendToTail(long op) {
+      Node tail = sentinel.prev;
+      sentinel.prev = this;
+      tail.next = this;
+      next = sentinel;
+      prev = tail;
+      lastOp = op;
+      lastTouch = System.nanoTime();
+    }
+
+    /**
+     * Removes the node from the list.
+     */
+    public void remove() {
+      sentinel.size -= 1;
+      if (this == sentinel) {
+        System.out.println(toString());
+      }
+      prev.next = next;
+      next.prev = prev;
+      prev = next = null;
+      key = Long.MIN_VALUE;
+      sentinel.totalBenefit -= this.event.delta();
+    }
+
+    /**
+     * Moves the node to the tail.
+     */
+    public void moveToTail() {
+      // unlink
+      prev.next = next;
+      next.prev = prev;
+
+      // link
+      next = sentinel;
+      prev = sentinel.prev;
+      sentinel.prev = this;
+      prev.next = this;
+
+    }
+
+    /**
+     * Moves the node to the tail.
+     */
+    public void moveToTail(long op) {
+      // unlink
+      prev.next = next;
+      next.prev = prev;
+
+      // link
+      next = sentinel;
+      prev = sentinel.prev;
+      sentinel.prev = this;
+      prev.next = this;
+      lastOp = op;
+      sentinel.updateOp(op);
+      lastTouch = System.nanoTime();
+    }
+
+    /**
+     * Updates the node's lastop without moving it
+     */
+    public void updateOp(long op) {
+      lastOp = op;
+      lastTouch = System.nanoTime();
+    }
+
+    /**
+     * Updates the node's lastop without moving it
+     */
+    public void resetOp() {
+      lastOp = Math.max(1, lastOp >> 1);
+      lastTouch = System.nanoTime();
+    }
+
+    public double avgBenefit() {
+      return this.sentinel.totalBenefit / getSize();
+    }
+
+    public int getSize() {
+      return this.sentinel.size;
+    }
+
+    @Override
+    public String toString() {
+      return MoreObjects.toStringHelper(this)
+          .add("key", key)
+          .add("weight", weight)
+          .toString();
+    }
   }
-
-  /**
-   * Moves the node to the tail.
-   */
-  public void moveToTail() {
-    // unlink
-    prev.next = next;
-    next.prev = prev;
-
-    // link
-    next = sentinel;
-    prev = sentinel.prev;
-    sentinel.prev = this;
-    prev.next = this;
-
-  }
-
-  /**
-   * Moves the node to the tail.
-   */
-  public void moveToTail(long op) {
-    // unlink
-    prev.next = next;
-    next.prev = prev;
-
-    // link
-    next = sentinel;
-    prev = sentinel.prev;
-    sentinel.prev = this;
-    prev.next = this;
-    lastOp = op;
-    sentinel.updateOp(op);
-    lastTouch = System.nanoTime();
-  }
-
-  /**
-   * Updates the node's lastop without moving it
-   */
-  public void updateOp(long op) {
-    lastOp = op;
-    lastTouch = System.nanoTime();
-  }
-
-  /**
-   * Updates the node's lastop without moving it
-   */
-  public void resetOp() {
-    lastOp = Math.max(1, lastOp >> 1);
-    lastTouch = System.nanoTime();
-  }
-
-  public double avgBenefit() {
-    return this.sentinel.totalBenefit / getSize();
-  }
-
-  public int getSize() {
-    return this.sentinel.size;
-  }
-
-  @Override
-  public String toString() {
-    return MoreObjects.toStringHelper(this)
-        .add("key", key)
-        .add("weight", weight)
-        .toString();
-  }
-}
 
 }
 

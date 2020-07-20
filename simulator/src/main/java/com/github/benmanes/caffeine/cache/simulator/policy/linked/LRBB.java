@@ -34,8 +34,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * A cache that uses multiple linked lists, each holding entries with close range of benefit to utilize access times
- * to create a simple "latency aware" replacement algorithms.
+ * A cache that uses multiple linked lists, each holding entries with close range of benefit to
+ * utilize access times to create a simple "latency aware" replacement algorithms.
  *
  * @author himelbrand@gmail.com (Omri Himelbrand)
  */
