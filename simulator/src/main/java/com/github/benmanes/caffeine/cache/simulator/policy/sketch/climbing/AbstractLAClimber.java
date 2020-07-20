@@ -25,6 +25,7 @@ import com.github.benmanes.caffeine.cache.simulator.policy.AccessEvent;
  * @author himelbrand@gmail.com (Omri Himelbrand)
  */
 public abstract class AbstractLAClimber implements LAHillClimber {
+
   protected int sampleSize;
   protected double penaltiesInSample;
   protected double penaltiesInWindow;
@@ -78,10 +79,14 @@ public abstract class AbstractLAClimber implements LAHillClimber {
     return adaption;
   }
 
-  /** Returns the amount to adapt by. */
+  /**
+   * Returns the amount to adapt by.
+   */
   protected abstract double adjust(double avgPenalty);
 
-  /** Starts the next sample period. */
+  /**
+   * Starts the next sample period.
+   */
   protected void resetSample(double avgPenalty) {
     previousAvgPenalty = avgPenalty;
     sampleCount = 0;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Ben Manes. All Rights Reserved.
+ * Copyright 2020 Omri Himelbrand. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  */
 package com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing;
 
-    import static com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.LAHillClimber.Adaptation.Type.DECREASE_WINDOW;
+import static com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.LAHillClimber.Adaptation.Type.DECREASE_WINDOW;
 import static com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.LAHillClimber.Adaptation.Type.INCREASE_WINDOW;
 import static com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.LAHillClimber.QueueType.PROBATION;
 import static com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.LAHillClimber.QueueType.PROTECTED;
@@ -50,6 +50,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @SuppressWarnings("PMD.TooManyFields")
 public final class LAHillClimberWindowPolicy implements Policy {
+
   private final double initialPercentMain;
   private final LAHillClimberType strategy;
   private final Long2ObjectMap<Node> data;
@@ -79,16 +80,17 @@ public final class LAHillClimberWindowPolicy implements Policy {
   double eps;
 
   public LAHillClimberWindowPolicy(
-      LAHillClimberType strategy, double percentMain, LAHillClimberWindowSettings settings,double k,double reset, double eps) {
+      LAHillClimberType strategy, double percentMain, LAHillClimberWindowSettings settings,
+      double k, double reset, double eps) {
 
     int maxMain = (int) (settings.maximumSize() * percentMain);
     this.maxProtected = (int) (maxMain * settings.percentMainProtected());
     this.maxWindow = settings.maximumSize() - maxMain;
     this.data = new Long2ObjectOpenHashMap<>();
     this.maximumSize = settings.maximumSize();
-    this.headProtected = new LRBBBlock(k,reset,eps,this.maxProtected);
-    this.headProbation =  new LRBBBlock(k,reset,eps,maxMain-this.maxProtected);
-    this.headWindow = new LRBBBlock(k,reset,eps,this.maxWindow);
+    this.headProtected = new LRBBBlock(k, reset, eps, this.maxProtected);
+    this.headProbation = new LRBBBlock(k, reset, eps, maxMain - this.maxProtected);
+    this.headWindow = new LRBBBlock(k, reset, eps, this.maxWindow);
 
     this.strategy = strategy;
     this.initialPercentMain = percentMain;
@@ -96,8 +98,8 @@ public final class LAHillClimberWindowPolicy implements Policy {
     this.admittor = new LATinyLfu(settings.config(), policyStats);
     this.climber = strategy.create(settings.config());
     this.currOp = 1;
-    this.resetCount = (int)(reset*maximumSize);
-    this.maxLists = (int) Math.round(2.0/eps);
+    this.resetCount = (int) (reset * maximumSize);
+    this.maxLists = (int) Math.round(2.0 / eps);
     this.lastReset = System.nanoTime();
     this.reqCount = 0;
     this.k = k;
@@ -110,20 +112,22 @@ public final class LAHillClimberWindowPolicy implements Policy {
         "LAHillClimberWindow (%s %.0f%% -> %.0f%%)(k=%.2f,eps=%.2f)",
         strategy.name().toLowerCase(US),
         100 * (1.0 - initialPercentMain),
-        (100.0 * maxWindow) / maximumSize,k,eps);
+        (100.0 * maxWindow) / maximumSize, k, eps);
   }
 
-  /** Returns all variations of this policy based on the configuration parameters. */
+  /**
+   * Returns all variations of this policy based on the configuration parameters.
+   */
   public static Set<Policy> policies(Config config) {
     LAHillClimberWindowSettings settings = new LAHillClimberWindowSettings(config);
     Set<Policy> policies = new HashSet<>();
     for (LAHillClimberType climber : settings.strategy()) {
       for (double percentMain : settings.percentMain()) {
-        for(double k : settings.k()) {
+        for (double k : settings.k()) {
           for (double r : settings.reset()) {
             for (double e : settings.epsilon()) {
               policies
-                  .add(new LAHillClimberWindowPolicy(climber, percentMain, settings,k,r,e));
+                  .add(new LAHillClimberWindowPolicy(climber, percentMain, settings, k, r, e));
             }
           }
         }
@@ -174,44 +178,9 @@ public final class LAHillClimberWindowPolicy implements Policy {
     climb(event, queue, isFull);
   }
 
-//  private int findList(List<Node> lists,AccessEvent candidate,QueueType queue) {
-//    double d = Double.MAX_VALUE;
-//    double tmpD;
-//    double minRange;
-//    double maxRange;
-//    int index = -1;
-//    int insertAt = 0;
-//    Node sentinel;
-//    if (lists.size() == 0) {
-//      lists.add(new Node(queue));
-//      return 0;
-//    }
-//    for (int i = 0; i < lists.size(); i++) {
-//
-//      sentinel = lists.get(i);
-//
-//      if (sentinel.next == sentinel || sentinel.size <= 0) {
-//        continue;
-//      }
-//      minRange = Math.pow(sentinel.avgBenefit(), 1 - eps);
-//      maxRange = Math.pow(sentinel.avgBenefit(), 1 + eps);
-//      if (candidate.benefit() >= minRange && candidate.benefit() <= maxRange) {
-//        index = i;
-//      }
-//      tmpD = Math.abs(candidate.benefit() - sentinel.avgBenefit());
-//      if (tmpD < d) {
-//        d = tmpD;
-//        insertAt = i;
-//      }
-//    }
-//    if (index < 0 && lists.size() < maxLists) {
-//      lists.add(insertAt, new Node(queue));
-//    }
-//    return insertAt;
-//  }
-
-
-  /** Adds the entry to the admission window, evicting if necessary. */
+  /**
+   * Adds the entry to the admission window, evicting if necessary.
+   */
   private void onMiss(AccessEvent event) {
     long key = event.key();
     Node node = headWindow.addEntry(event);
@@ -220,12 +189,16 @@ public final class LAHillClimberWindowPolicy implements Policy {
     evict();
   }
 
-  /** Moves the entry to the MRU position in the admission window. */
+  /**
+   * Moves the entry to the MRU position in the admission window.
+   */
   private void onWindowHit(Node node) {
     node.moveToTail();
   }
 
-  /** Promotes the entry to the protected region's MRU position, demoting an entry if necessary. */
+  /**
+   * Promotes the entry to the protected region's MRU position, demoting an entry if necessary.
+   */
   private void onProbationHit(Node node) {
     node.remove();
     headProbation.remove(node.key());
@@ -244,7 +217,9 @@ public final class LAHillClimberWindowPolicy implements Policy {
     }
   }
 
-  /** Moves the entry to the MRU position, if it falls outside of the fast-path threshold. */
+  /**
+   * Moves the entry to the MRU position, if it falls outside of the fast-path threshold.
+   */
   private void onProtectedHit(Node node) {
     node.moveToTail();
   }
@@ -264,7 +239,7 @@ public final class LAHillClimberWindowPolicy implements Policy {
     headWindow.remove(candidate.key());
     headProbation.addEntry(candidate);
     if (data.size() > maximumSize) {
-      Node victim =  headProbation.findVictim();
+      Node victim = headProbation.findVictim();
       Node evict = admittor.admit(candidate.event(), victim.event()) ? victim : candidate;
       data.remove(evict.key());
       evict.remove();
@@ -272,45 +247,10 @@ public final class LAHillClimberWindowPolicy implements Policy {
       policyStats.recordEviction();
     }
   }
-//  private Node findVictim(List<Node> lists) {
-//    Node victim = null;
-//    double minRank = Double.MAX_VALUE;
-//    int maxSize = Integer.MAX_VALUE;
-//    for (Node currSentinel : lists) {
-//      if (currSentinel.next == currSentinel) {
-//        continue;
-//      }
-//      if(currSentinel.size < maxSize){
-//        maxSize = currSentinel.size;
-//      }
-//      Node currVictim = currSentinel.next;
-//      Node suspect = currSentinel.suspect;
-//      if (currVictim.lastTouch < lastReset) {
-//        currVictim.resetOp();
-//      }
-//      if (suspect.lastTouch < lastReset) {
-//        suspect.resetOp();
-//      }
-//      AccessEvent event1 = currVictim.event;
-//      AccessEvent event2 = suspect.event;
-//
-//
-//      double rank1 = event1.benefit() * Math.pow((double) currOp-currVictim.lastOp , -k);
-//      double rank2 = event2.benefit() * Math.pow((double) currOp-suspect.lastOp , -k);
-//      double rank = Math.min(rank1, rank2);
-//      if(rank == rank2 && data.containsKey(suspect.key) && suspect.head == currSentinel){
-//        currVictim = suspect;
-//
-//      }
-//      if (rank < minRank || victim == null ||(rank == minRank && currVictim.lastOp  < victim.lastOp)) {
-//        minRank = rank;
-//        victim = currVictim;
-//      }
-//
-//    }
-//    return victim;
-//  }
-  /** Performs the hill climbing process. */
+
+  /**
+   * Performs the hill climbing process.
+   */
   private void climb(AccessEvent event, @Nullable QueueType queue, boolean isFull) {
     if (queue == null) {
       climber.onMiss(event, isFull);
@@ -319,7 +259,8 @@ public final class LAHillClimberWindowPolicy implements Policy {
     }
 
     double probationSize = maximumSize - windowSize - protectedSize;
-    LAHillClimber.Adaptation adaptation = climber.adapt(windowSize, probationSize, protectedSize, isFull);
+    LAHillClimber.Adaptation adaptation = climber
+        .adapt(windowSize, probationSize, protectedSize, isFull);
     if (adaptation.type == INCREASE_WINDOW) {
       increaseWindow(adaptation.amount);
     } else if (adaptation.type == DECREASE_WINDOW) {
@@ -346,10 +287,6 @@ public final class LAHillClimberWindowPolicy implements Policy {
       candidate.remove();
       headProbation.remove(candidate.key());
       headWindow.addEntry(candidate);
-//      candidate.queue = WINDOW;
-//      int headIndex = findList(windowList,candidate.event,WINDOW);
-//      candidate.appendToTail(windowList.get(headIndex),true);
-//      candidate.updateOp(currOp++);
     }
     checkState(windowSize >= 0);
     checkState(maxWindow >= 0);
@@ -373,17 +310,10 @@ public final class LAHillClimberWindowPolicy implements Policy {
     for (int i = 0; i < steps; i++) {
       maxWindow--;
       maxProtected++;
-
       Node candidate = headWindow.findVictim();
-//      Node candidateHead = candidate.head;
       candidate.remove();
       headWindow.remove(candidate.key());
-//      if(candidateHead.size <= 0){
-//        windowList.remove(candidateHead);
-//      }
-//      candidate.queue = PROBATION;
       headProbation.addEntry(candidate);
-//      candidate.appendToHead(headProbation,true);
     }
     checkState(windowSize >= 0);
     checkState(maxWindow >= 0);
@@ -408,8 +338,10 @@ public final class LAHillClimberWindowPolicy implements Policy {
     printSegmentSizes();
 
     long actualWindowSize = data.values().stream().filter(n -> headWindow.isHit(n.key())).count();
-    long actualProbationSize = data.values().stream().filter(n -> headProbation.isHit(n.key())).count();
-    long actualProtectedSize = data.values().stream().filter(n -> headProtected.isHit(n.key())).count();
+    long actualProbationSize = data.values().stream().filter(n -> headProbation.isHit(n.key()))
+        .count();
+    long actualProtectedSize = data.values().stream().filter(n -> headProtected.isHit(n.key()))
+        .count();
     long calculatedProbationSize = data.size() - actualWindowSize - actualProtectedSize;
 
     checkState(
@@ -431,6 +363,7 @@ public final class LAHillClimberWindowPolicy implements Policy {
   }
 
   public static final class LAHillClimberWindowSettings extends BasicSettings {
+
     public LAHillClimberWindowSettings(Config config) {
       super(config);
     }

@@ -30,8 +30,8 @@ public interface LAHillClimber {
   /**
    * Records that a hit occurred with a full cache.
    *
-   * @param event the key accessed
-   * @param queue the queue the entry was found in
+   * @param event  the key accessed
+   * @param queue  the queue the entry was found in
    * @param isFull if the cache is fully populated
    */
   void onHit(AccessEvent event, QueueType queue, boolean isFull);
@@ -39,7 +39,7 @@ public interface LAHillClimber {
   /**
    * Records that a miss occurred with a full cache.
    *
-   * @param event the key accessed
+   * @param event  the key accessed
    * @param isFull if the cache is fully populated and had to evict
    */
   void onMiss(AccessEvent event, boolean isFull);
@@ -47,10 +47,10 @@ public interface LAHillClimber {
   /**
    * Determines how to adapt the segment sizes.
    *
-   * @param windowSize the current window size
+   * @param windowSize    the current window size
    * @param probationSize the current probation size
    * @param protectedSize the current protected size
-   * @param isFull if the cache is fully populated
+   * @param isFull        if the cache is fully populated
    * @return the adjustment to the segments
    */
   Adaptation adapt(double windowSize, double probationSize, double protectedSize, boolean isFull);
@@ -59,8 +59,11 @@ public interface LAHillClimber {
     WINDOW, PROBATION, PROTECTED
   }
 
-  /** The adaptation type and its magnitude. */
+  /**
+   * The adaptation type and its magnitude.
+   */
   final class Adaptation {
+
     public enum Type {
       HOLD, INCREASE_WINDOW, DECREASE_WINDOW
     }
@@ -76,7 +79,9 @@ public interface LAHillClimber {
       this.amount = amount;
     }
 
-    /** Returns the adaption based on the amount, where a negative value decreases the window. */
+    /**
+     * Returns the adaption based on the amount, where a negative value decreases the window.
+     */
     public static Adaptation adaptBy(double amount) {
       if (amount == 0) {
         return hold();
@@ -102,10 +107,14 @@ public interface LAHillClimber {
     @Override
     public String toString() {
       switch (type) {
-        case HOLD: return "0";
-        case INCREASE_WINDOW: return "+" + amount;
-        case DECREASE_WINDOW: return "-" + amount;
-        default: throw new IllegalStateException();
+        case HOLD:
+          return "0";
+        case INCREASE_WINDOW:
+          return "+" + amount;
+        case DECREASE_WINDOW:
+          return "-" + amount;
+        default:
+          throw new IllegalStateException();
       }
     }
   }
