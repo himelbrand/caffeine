@@ -43,10 +43,10 @@ import java.util.Set;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * The Window TinyLfu algorithm where the size of the admission window is adjusted using the a hill
- * climbing algorithm.
+ * The WindowLA algorithm where the size of the admission window is adjusted using the a latency aware
+ * hill climbing algorithm.
  *
- * @author ben.manes@gmail.com (Ben Manes)
+ * @author himelbrand@gmail.com (Omri Himelbrand)
  */
 @SuppressWarnings("PMD.TooManyFields")
 public final class LAHillClimberWindowPolicy implements Policy {
@@ -88,9 +88,10 @@ public final class LAHillClimberWindowPolicy implements Policy {
     this.maxWindow = settings.maximumSize() - maxMain;
     this.data = new Long2ObjectOpenHashMap<>();
     this.maximumSize = settings.maximumSize();
-    this.headProtected = new LRBBBlock(k, reset, eps, this.maxProtected);
-    this.headProbation = new LRBBBlock(k, reset, eps, maxMain - this.maxProtected);
-    this.headWindow = new LRBBBlock(k, reset, eps, this.maxWindow);
+    boolean asLRU = settings.asLRU();
+    this.headProtected = new LRBBBlock(k, reset, eps, this.maxProtected,asLRU);
+    this.headProbation = new LRBBBlock(k, reset, eps, maxMain - this.maxProtected,asLRU);
+    this.headWindow = new LRBBBlock(k, reset, eps, this.maxWindow,false);
 
     this.strategy = strategy;
     this.initialPercentMain = percentMain;
@@ -393,6 +394,10 @@ public final class LAHillClimberWindowPolicy implements Policy {
 
     public List<Double> reset() {
       return config().getDoubleList("la-hill-climber-window.lrbb.reset");
+    }
+
+    public boolean asLRU() {
+      return config().getBoolean("la-hill-climber-window.as-lru");
     }
   }
 }

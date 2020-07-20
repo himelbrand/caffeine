@@ -44,14 +44,14 @@ public final class LRBBBlock {
   private long lastReset;
   private int currentSize;
 
-  public LRBBBlock(double k, double reset, double eps, int maximumSize) {
+  public LRBBBlock(double k, double reset, double eps, int maximumSize, boolean asLRU) {
     this.maximumSize = maximumSize;
     this.currOp = 1;
     this.data = new Long2ObjectOpenHashMap<>();
     this.lists = new ArrayList<>();
     this.resetCount = (int) (reset * maximumSize);
     this.lists.add(new Node());
-    this.maxLists = (int) Math.round(2.0 / eps);
+    this.maxLists = asLRU ? 1 : (int) Math.round(2.0 / eps);
     this.lastReset = System.nanoTime();
     this.reqCount = 0;
     this.currentSize = 0;

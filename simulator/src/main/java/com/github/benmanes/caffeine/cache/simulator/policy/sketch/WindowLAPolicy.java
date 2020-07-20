@@ -79,9 +79,10 @@ public final class WindowLAPolicy implements Policy {
     this.maxWindow = settings.maximumSize() - maxMain;
     this.data = new Long2ObjectOpenHashMap<>();
     this.maximumSize = settings.maximumSize();
-    this.headProtected = new LRBBBlock(k, reset, eps, this.maxProtected);
-    this.headProbation = new LRBBBlock(k, reset, eps, maxMain - this.maxProtected);
-    this.headWindow = new LRBBBlock(k, reset, eps, this.maxWindow);
+    boolean asLRU = settings.asLRU();
+    this.headProtected = new LRBBBlock(k, reset, eps, this.maxProtected,asLRU);
+    this.headProbation = new LRBBBlock(k, reset, eps, maxMain - this.maxProtected,asLRU);
+    this.headWindow = new LRBBBlock(k, reset, eps, this.maxWindow,false);
   }
 
   /**
@@ -231,11 +232,11 @@ public final class WindowLAPolicy implements Policy {
     }
 
     public List<Double> percentMain() {
-      return config().getDoubleList("window-tiny-lfu.percent-main");
+      return config().getDoubleList("la-window.percent-main");
     }
 
     public double percentMainProtected() {
-      return config().getDouble("window-tiny-lfu.percent-main-protected");
+      return config().getDouble("la-window.percent-main-protected");
     }
 
     public List<Double> k() {
@@ -249,5 +250,7 @@ public final class WindowLAPolicy implements Policy {
     public List<Double> reset() {
       return config().getDoubleList("lrbb.reset");
     }
+
+    public boolean asLRU() { return config().getBoolean("la-window.as-lru");}
   }
 }
