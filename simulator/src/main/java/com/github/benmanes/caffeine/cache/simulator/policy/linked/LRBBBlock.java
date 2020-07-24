@@ -152,7 +152,7 @@ public final class LRBBBlock {
     data.put((long) candidate.key(), node);
     if (inSentinel.size > 0) {
       Node listNext = inSentinel.next;
-      if (listNext.event.delta() * Math.pow((double) currOp - listNext.lastOp, -k) > candidate
+      if (listNext.event.delta() * Math.pow((double) currOp - listNext.lastOp + 1, -k) > candidate
           .delta()) {
         node.appendToHead();
       } else {
@@ -170,7 +170,7 @@ public final class LRBBBlock {
     data.put(node.key(), node);
     if (inSentinel.size > 0) {
       Node listNext = inSentinel.next;
-      if (listNext.event.delta() * Math.pow((double) currOp - listNext.lastOp, -k) > node.event
+      if (listNext.event.delta() * Math.pow((double) currOp - listNext.lastOp + 1, -k) > node.event
           .delta()) {
         node.appendToHead();
       } else {

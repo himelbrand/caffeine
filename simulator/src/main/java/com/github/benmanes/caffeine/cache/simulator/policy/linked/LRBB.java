@@ -201,7 +201,7 @@ public final class LRBB implements Policy {
     data.put((long) candidate.key(), node);
     if (inSentinel.size > 0) {
       Node listNext = inSentinel.next;
-      if (listNext.event.delta() * Math.pow((double) currOp - listNext.lastOp, -k) > candidate
+      if (listNext.event.delta() * Math.pow((double) currOp - listNext.lastOp + 1, -k) > candidate
           .delta()) {
         node.appendToHead();
       } else {
