@@ -16,6 +16,7 @@
 package com.github.benmanes.caffeine;
 
 import static com.github.benmanes.caffeine.IsValidSingleConsumerQueue.validate;
+import static com.github.benmanes.caffeine.testing.Awaits.await;
 import static com.github.benmanes.caffeine.testing.IsEmptyIterable.deeplyEmpty;
 import static com.google.common.collect.Iterators.elementsEqual;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -44,9 +45,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Listeners;
 import org.testng.annotations.Test;
 
-import com.github.benmanes.caffeine.SingleConsumerQueue.LinearizableNode;
 import com.github.benmanes.caffeine.SingleConsumerQueueTest.ValidatingQueueListener;
-import com.github.benmanes.caffeine.testing.Awaits;
 import com.github.benmanes.caffeine.testing.ConcurrentTestHarness;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -55,6 +54,7 @@ import com.google.common.testing.SerializableTester;
 /**
  * @author ben.manes@gmail.com (Ben Manes)
  */
+@SuppressWarnings("deprecation")
 @Listeners(ValidatingQueueListener.class)
 public class SingleConsumerQueueTest {
   private static final int PRODUCE = 10_000;
@@ -426,7 +426,7 @@ public class SingleConsumerQueueTest {
 
     ConcurrentTestHarness.execute(() -> {
       started.incrementAndGet();
-      Awaits.await().untilAtomic(started, is(2));
+      await().untilAtomic(started, is(2));
       for (int i = 0; i < PRODUCE; i++) {
         queue.add(i);
       }
@@ -434,14 +434,14 @@ public class SingleConsumerQueueTest {
     });
     ConcurrentTestHarness.execute(() -> {
       started.incrementAndGet();
-      Awaits.await().untilAtomic(started, is(2));
+      await().untilAtomic(started, is(2));
       for (int i = 0; i < PRODUCE; i++) {
         while (queue.poll() == null) {}
       }
       finished.incrementAndGet();
     });
 
-    Awaits.await().untilAtomic(finished, is(2));
+    await().untilAtomic(finished, is(2));
     assertThat(queue, is(deeplyEmpty()));
   }
 
@@ -463,7 +463,7 @@ public class SingleConsumerQueueTest {
 
     ConcurrentTestHarness.execute(() -> {
       started.incrementAndGet();
-      Awaits.await().untilAtomic(started, is(NUM_PRODUCERS + 1));
+      await().untilAtomic(started, is(NUM_PRODUCERS + 1));
       for (int i = 0; i < (NUM_PRODUCERS * PRODUCE); i++) {
         while (queue.poll() == null) {}
       }
@@ -472,14 +472,14 @@ public class SingleConsumerQueueTest {
 
     ConcurrentTestHarness.timeTasks(NUM_PRODUCERS, () -> {
       started.incrementAndGet();
-      Awaits.await().untilAtomic(started, is(NUM_PRODUCERS + 1));
+      await().untilAtomic(started, is(NUM_PRODUCERS + 1));
       for (int i = 0; i < PRODUCE; i++) {
         queue.add(i);
       }
       finished.incrementAndGet();
     });
 
-    Awaits.await().untilAtomic(finished, is(NUM_PRODUCERS + 1));
+    await().untilAtomic(finished, is(NUM_PRODUCERS + 1));
     assertThat(queue, is(deeplyEmpty()));
   }
 
@@ -561,8 +561,8 @@ public class SingleConsumerQueueTest {
     for (int i = 0; i < params.length; i++) {
       Object param = params[i];
       if ((param instanceof SingleConsumerQueue<?>)) {
-        boolean linearizable =
-            (((SingleConsumerQueue<?>) param).factory.apply(null) instanceof LinearizableNode<?>);
+        SingleConsumerQueue.Node<?> node = ((SingleConsumerQueue<?>) param).factory.apply(null);
+        boolean linearizable = (node instanceof SingleConsumerQueue.LinearizableNode<?>);
         params[i] = param.getClass().getSimpleName() + "_"
             + (linearizable ? "linearizable" : "optimistic");
       } else {

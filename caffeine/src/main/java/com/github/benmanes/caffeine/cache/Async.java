@@ -20,8 +20,9 @@ import static java.util.Objects.requireNonNull;
 
 import java.io.Serializable;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -52,11 +53,8 @@ final class Async {
   /** Returns the value when completed successfully or null if failed. */
   static @Nullable <V> V getWhenSuccessful(@Nullable CompletableFuture<V> future) {
     try {
-      return (future == null) ? null : future.get();
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      return null;
-    } catch (ExecutionException e) {
+      return (future == null) ? null : future.join();
+    } catch (CancellationException | CompletionException e) {
       return null;
     }
   }
@@ -82,7 +80,11 @@ final class Async {
     public void onRemoval(@Nullable K key,
         @Nullable CompletableFuture<V> future, RemovalCause cause) {
       if (future != null) {
-        future.thenAcceptAsync(value -> delegate.onRemoval(key, value, cause), executor);
+        future.thenAcceptAsync(value -> {
+          if (value != null) {
+            delegate.onRemoval(key, value, cause);
+          }
+        }, executor);
       }
     }
 

@@ -28,7 +28,9 @@ import sun.misc.Unsafe;
  * <b>Warning:</b> This class is scheduled for removal in version 3.0.0.
  *
  * @author ben.manes@gmail.com (Ben Manes)
+ * @deprecated Scheduled for removal in version 3.0.0
  */
+@Deprecated
 @SuppressWarnings("restriction")
 public final class UnsafeAccess {
   static final String ANDROID = "THE_ONE";

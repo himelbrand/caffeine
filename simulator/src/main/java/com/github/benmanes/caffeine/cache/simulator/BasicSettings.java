@@ -84,22 +84,8 @@ public class BasicSettings {
     return config().getInt("maximum-size");
   }
 
-  public boolean isFiles() {
-    return config().getString("source").equals("files");
-  }
-
-  public boolean isSynthetic() {
-    return config().getString("source").equals("synthetic");
-  }
-
-  public TraceFilesSettings traceFiles() {
-    checkState(isFiles());
-    return new TraceFilesSettings();
-  }
-
-  public SyntheticSettings synthetic() {
-    checkState(isSynthetic());
-    return new SyntheticSettings();
+  public TraceSettings trace() {
+    return new TraceSettings();
   }
 
   /** Returns the config resolved at the simulator's path. */
@@ -217,6 +203,29 @@ public class BasicSettings {
       public boolean enabled() {
         return config().getBoolean("tiny-lfu.count-min-4.periodic.doorkeeper.enabled");
       }
+    }
+  }
+
+  public final class TraceSettings {
+    public long skip() {
+      return config().getLong("trace.skip");
+    }
+    public long limit() {
+      return config().getIsNull("trace.limit") ? Long.MAX_VALUE : config().getLong("trace.limit");
+    }
+    public boolean isFiles() {
+      return config().getString("trace.source").equals("files");
+    }
+    public boolean isSynthetic() {
+      return config().getString("trace.source").equals("synthetic");
+    }
+    public TraceFilesSettings traceFiles() {
+      checkState(isFiles());
+      return new TraceFilesSettings();
+    }
+    public SyntheticSettings synthetic() {
+      checkState(isSynthetic());
+      return new SyntheticSettings();
     }
   }
 

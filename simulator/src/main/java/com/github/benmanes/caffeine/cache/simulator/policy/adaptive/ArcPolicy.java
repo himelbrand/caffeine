@@ -25,6 +25,7 @@ import com.github.benmanes.caffeine.cache.simulator.policy.Policy.KeyOnlyPolicy;
 import com.github.benmanes.caffeine.cache.simulator.policy.PolicyStats;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.primitives.Ints;
 import com.typesafe.config.Config;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -75,8 +76,8 @@ public final class ArcPolicy implements KeyOnlyPolicy {
 
   public ArcPolicy(Config config) {
     BasicSettings settings = new BasicSettings(config);
+    this.maximumSize = Ints.checkedCast(settings.maximumSize());
     this.policyStats = new PolicyStats("adaptive.Arc");
-    this.maximumSize = settings.maximumSize();
     this.data = new Long2ObjectOpenHashMap<>();
     this.headT1 = new Node();
     this.headT2 = new Node();
@@ -226,6 +227,8 @@ public final class ArcPolicy implements KeyOnlyPolicy {
 
   @Override
   public void finished() {
+    policyStats.setPercentAdaption((sizeT1 / (double) maximumSize) - 0.5);
+
     checkState(sizeT1 == data.values().stream().filter(node -> node.type == QueueType.T1).count());
     checkState(sizeT2 == data.values().stream().filter(node -> node.type == QueueType.T2).count());
     checkState(sizeB1 == data.values().stream().filter(node -> node.type == QueueType.B1).count());

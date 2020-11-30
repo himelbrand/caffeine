@@ -15,10 +15,9 @@
  */
 package com.github.benmanes.caffeine.cache.simulator.policy.linked;
 
+import static com.github.benmanes.caffeine.cache.simulator.policy.Policy.Characteristic.WEIGHTED;
 import static java.util.Locale.US;
 import static java.util.stream.Collectors.toSet;
-
-import static com.github.benmanes.caffeine.cache.simulator.policy.Policy.Characteristic.WEIGHTED;
 
 import java.util.Set;
 
@@ -29,7 +28,6 @@ import com.github.benmanes.caffeine.cache.simulator.admission.Admission;
 import com.github.benmanes.caffeine.cache.simulator.admission.Admittor;
 import com.github.benmanes.caffeine.cache.simulator.policy.AccessEvent;
 import com.github.benmanes.caffeine.cache.simulator.policy.Policy;
-import com.github.benmanes.caffeine.cache.simulator.policy.Policy.Characteristic;
 import com.github.benmanes.caffeine.cache.simulator.policy.PolicyStats;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Sets;
@@ -49,13 +47,18 @@ public final class LinkedPolicy implements Policy {
   final PolicyStats policyStats;
   final EvictionPolicy policy;
   final Admittor admittor;
-  final int maximumSize;
+  final long maximumSize;
+  final boolean weighted;
   final Node sentinel;
-  int currentSize;
 
-  public LinkedPolicy(Admission admission, EvictionPolicy policy, Config config) {
+  long currentSize;
+
+  public LinkedPolicy(Config config, Set<Characteristic> characteristics,
+      Admission admission, EvictionPolicy policy) {
     this.policyStats = new PolicyStats(admission.format("linked." + policy.label()));
     this.admittor = admission.from(config, policyStats);
+    this.weighted = characteristics.contains(WEIGHTED);
+
     BasicSettings settings = new BasicSettings(config);
     this.data = new Long2ObjectOpenHashMap<>();
     this.maximumSize = settings.maximumSize();
@@ -64,26 +67,27 @@ public final class LinkedPolicy implements Policy {
   }
 
   /** Returns all variations of this policy based on the configuration parameters. */
-  public static Set<Policy> policies(Config config, EvictionPolicy policy) {
+  public static Set<Policy> policies(Config config,
+      Set<Characteristic> characteristics, EvictionPolicy policy) {
     BasicSettings settings = new BasicSettings(config);
     return settings.admission().stream().map(admission ->
-      new LinkedPolicy(admission, policy, config)
+      new LinkedPolicy(config, characteristics, admission, policy)
     ).collect(toSet());
   }
 
   @Override
   public Set<Characteristic> characteristics() {
-    return Sets.immutableEnumSet(WEIGHTED);  
+    return Sets.immutableEnumSet(WEIGHTED);
   }
 
   @Override
   public PolicyStats stats() {
     return policyStats;
   }
-  
+
   @Override
   public void record(AccessEvent event) {
-    final int weight = event.weight();
+    final int weight = weighted ? event.weight() : 1;
     final long key = event.key();
     Node old = data.get(key);
     admittor.record(key);
@@ -100,7 +104,11 @@ public final class LinkedPolicy implements Policy {
       evict(node);
     } else {
       policyStats.recordWeightedHit(weight);
+      currentSize += (weight - old.weight);
+      old.weight = weight;
+
       policy.onAccess(old, policyStats);
+      evict(old);
     }
   }
 
@@ -110,7 +118,7 @@ public final class LinkedPolicy implements Policy {
       while (currentSize > maximumSize) {
         Node victim = policy.findVictim(sentinel, policyStats);
         policyStats.recordEviction();
-  
+
         boolean admit = admittor.admit(candidate.key, victim.key);
         if (admit) {
           evictEntry(victim);

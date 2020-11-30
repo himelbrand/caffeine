@@ -28,6 +28,7 @@ import com.github.benmanes.caffeine.cache.simulator.policy.Policy;
 import com.github.benmanes.caffeine.cache.simulator.policy.PolicyStats;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+import com.google.common.primitives.Ints;
 import com.typesafe.config.Config;
 
 /**
@@ -45,13 +46,13 @@ public final class CaffeinePolicy implements Policy {
     Caffeine<Long, AccessEvent> builder = Caffeine.newBuilder()
         .removalListener((Long key, AccessEvent value, RemovalCause cause) ->
             policyStats.recordEviction())
-        .initialCapacity(settings.maximumSize())
         .executor(Runnable::run);
     if (characteristics.contains(WEIGHTED)) {
       builder.maximumWeight(settings.maximumSize());
       builder.weigher((key, value) -> value.weight());
     } else {
       builder.maximumSize(settings.maximumSize());
+      builder.initialCapacity(Ints.saturatedCast(settings.maximumSize()));
     }
     cache = builder.build();
   }
@@ -67,12 +68,15 @@ public final class CaffeinePolicy implements Policy {
 
   @Override
   public void record(AccessEvent event) {
-    Object value = cache.getIfPresent(event.key());
+    AccessEvent value = cache.getIfPresent(event.key());
     if (value == null) {
       cache.put(event.key(), event);
       policyStats.recordWeightedMiss(event.weight());
     } else {
       policyStats.recordWeightedHit(event.weight());
+      if (event.weight() != value.weight()) {
+        cache.put(event.key(), event);
+      }
     }
   }
 

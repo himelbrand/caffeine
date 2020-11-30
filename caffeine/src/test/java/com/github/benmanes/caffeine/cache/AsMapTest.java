@@ -21,6 +21,7 @@ import static com.github.benmanes.caffeine.cache.testing.HasStats.hasHitCount;
 import static com.github.benmanes.caffeine.cache.testing.HasStats.hasLoadFailureCount;
 import static com.github.benmanes.caffeine.cache.testing.HasStats.hasLoadSuccessCount;
 import static com.github.benmanes.caffeine.cache.testing.HasStats.hasMissCount;
+import static com.github.benmanes.caffeine.testing.Awaits.await;
 import static com.github.benmanes.caffeine.testing.IsEmptyIterable.deeplyEmpty;
 import static com.github.benmanes.caffeine.testing.IsEmptyMap.emptyMap;
 import static com.google.common.collect.Maps.immutableEntry;
@@ -49,6 +50,8 @@ import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.Spliterators;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -72,6 +75,7 @@ import com.github.benmanes.caffeine.cache.testing.CheckNoStats;
 import com.github.benmanes.caffeine.cache.testing.CheckNoWriter;
 import com.github.benmanes.caffeine.cache.testing.RejectingCacheWriter.DeleteException;
 import com.github.benmanes.caffeine.cache.testing.RejectingCacheWriter.WriteException;
+import com.github.benmanes.caffeine.testing.ConcurrentTestHarness;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -373,6 +377,31 @@ public final class AsMapTest {
     assertThat(map, hasRemovalNotifications(context, count, RemovalCause.REPLACED));
   }
 
+  @Test(dataProvider = "caches")
+  @CacheSpec(population = Population.EMPTY,
+      removalListener = {Listener.DEFAULT, Listener.REJECTING})
+  public void put_async_null(AsyncCache<Integer, Integer> cache, CacheContext context) {
+    Integer key = context.absentKey();
+    Integer newValue = context.absentValue();
+    CompletableFuture<Integer> future = new CompletableFuture<>();
+
+    cache.put(key, future);
+    AtomicBoolean start = new AtomicBoolean();
+    AtomicBoolean done = new AtomicBoolean();
+    ConcurrentTestHarness.execute(() -> {
+      start.set(true);
+      Integer result = cache.synchronous().asMap().put(key, newValue);
+      assertThat(result, is(nullValue()));
+      done.set(true);
+    });
+
+    await().untilTrue(start);
+    future.complete(null);
+
+    await().untilTrue(done);
+    assertThat(cache.synchronous().asMap().get(key), is(newValue));
+  }
+
   /* --------------- putAll --------------- */
 
   @CheckNoWriter @CheckNoStats
@@ -533,6 +562,31 @@ public final class AsMapTest {
     });
   }
 
+  @Test(dataProvider = "caches")
+  @CacheSpec(population = Population.EMPTY,
+      removalListener = {Listener.DEFAULT, Listener.REJECTING})
+  public void putIfAbsent_async_null(AsyncCache<Integer, Integer> cache, CacheContext context) {
+    Integer key = context.absentKey();
+    Integer newValue = context.absentValue();
+    CompletableFuture<Integer> future = new CompletableFuture<>();
+
+    cache.put(key, future);
+    AtomicBoolean start = new AtomicBoolean();
+    AtomicBoolean done = new AtomicBoolean();
+    ConcurrentTestHarness.execute(() -> {
+      start.set(true);
+      Integer result = cache.synchronous().asMap().putIfAbsent(key, newValue);
+      assertThat(result, is(nullValue()));
+      done.set(true);
+    });
+
+    await().untilTrue(start);
+    future.complete(null);
+
+    await().untilTrue(done);
+    assertThat(cache.synchronous().asMap().get(key), is(newValue));
+  }
+
   /* --------------- remove --------------- */
 
   @CheckNoWriter @CheckNoStats
@@ -578,6 +632,30 @@ public final class AsMapTest {
     int count = context.firstMiddleLastKeys().size();
     assertThat(map, hasRemovalNotifications(context, count, RemovalCause.EXPLICIT));
     verifyWriter(context, (verifier, writer) -> verifier.deletions(count, RemovalCause.EXPLICIT));
+  }
+
+  @Test(dataProvider = "caches")
+  @CacheSpec(population = Population.EMPTY,
+      removalListener = {Listener.DEFAULT, Listener.REJECTING})
+  public void remove_async_null(AsyncCache<Integer, Integer> cache, CacheContext context) {
+    Integer key = context.absentKey();
+    CompletableFuture<Integer> future = new CompletableFuture<>();
+
+    cache.put(key, future);
+    AtomicBoolean start = new AtomicBoolean();
+    AtomicBoolean done = new AtomicBoolean();
+    ConcurrentTestHarness.execute(() -> {
+      start.set(true);
+      Integer result = cache.synchronous().asMap().remove(key);
+      assertThat(result, is(nullValue()));
+      done.set(true);
+    });
+
+    await().untilTrue(start);
+    future.complete(null);
+
+    await().untilTrue(done);
+    assertThat(cache.synchronous().asMap().get(key), is(nullValue()));
   }
 
   /* --------------- remove conditionally --------------- */
@@ -650,6 +728,32 @@ public final class AsMapTest {
     assertThat(map.size(), is(context.original().size() - count));
     assertThat(map, hasRemovalNotifications(context, count, RemovalCause.EXPLICIT));
     verifyWriter(context, (verifier, writer) -> verifier.deletions(count, RemovalCause.EXPLICIT));
+  }
+
+  @Test(dataProvider = "caches")
+  @CacheSpec(population = Population.EMPTY,
+      removalListener = {Listener.DEFAULT, Listener.REJECTING})
+  public void removeConditionally_async_null(
+      AsyncCache<Integer, Integer> cache, CacheContext context) {
+    Integer key = context.absentKey();
+    Integer newValue = context.absentValue();
+    CompletableFuture<Integer> future = new CompletableFuture<>();
+
+    cache.put(key, future);
+    AtomicBoolean start = new AtomicBoolean();
+    AtomicBoolean done = new AtomicBoolean();
+    ConcurrentTestHarness.execute(() -> {
+      start.set(true);
+      boolean result = cache.synchronous().asMap().remove(key, newValue);
+      assertThat(result, is(false));
+      done.set(true);
+    });
+
+    await().untilTrue(start);
+    future.complete(null);
+
+    await().untilTrue(done);
+    assertThat(cache.synchronous().asMap().get(key), is(nullValue()));
   }
 
   /* --------------- replace --------------- */
@@ -728,6 +832,31 @@ public final class AsMapTest {
     assertThat(map.size(), is(context.original().size()));
     assertThat(map, hasRemovalNotifications(context, count, RemovalCause.REPLACED));
     verifyWriter(context, (verifier, writer) -> verifier.writes(count));
+  }
+
+  @Test(dataProvider = "caches")
+  @CacheSpec(population = Population.EMPTY,
+      removalListener = {Listener.DEFAULT, Listener.REJECTING})
+  public void replace_async_null(AsyncCache<Integer, Integer> cache, CacheContext context) {
+    Integer key = context.absentKey();
+    Integer newValue = context.absentValue();
+    CompletableFuture<Integer> future = new CompletableFuture<>();
+
+    cache.put(key, future);
+    AtomicBoolean start = new AtomicBoolean();
+    AtomicBoolean done = new AtomicBoolean();
+    ConcurrentTestHarness.execute(() -> {
+      start.set(true);
+      Integer result = cache.synchronous().asMap().replace(key, newValue);
+      assertThat(result, is(nullValue()));
+      done.set(true);
+    });
+
+    await().untilTrue(start);
+    future.complete(null);
+
+    await().untilTrue(done);
+    assertThat(cache.synchronous().asMap().get(key), is(nullValue()));
   }
 
   /* --------------- replace conditionally --------------- */
@@ -856,6 +985,32 @@ public final class AsMapTest {
     int count = context.firstMiddleLastKeys().size();
     assertThat(map, hasRemovalNotifications(context, count, RemovalCause.REPLACED));
     verifyWriter(context, (verifier, writer) -> verifier.writes(count));
+  }
+
+  @Test(dataProvider = "caches")
+  @CacheSpec(population = Population.EMPTY,
+      removalListener = {Listener.DEFAULT, Listener.REJECTING})
+  public void replaceConditionally_async_null(
+      AsyncCache<Integer, Integer> cache, CacheContext context) {
+    Integer key = context.absentKey();
+    Integer newValue = context.absentValue();
+    CompletableFuture<Integer> future = new CompletableFuture<>();
+
+    cache.put(key, future);
+    AtomicBoolean start = new AtomicBoolean();
+    AtomicBoolean done = new AtomicBoolean();
+    ConcurrentTestHarness.execute(() -> {
+      start.set(true);
+      boolean replaced = cache.synchronous().asMap().replace(key, key, newValue);
+      assertThat(replaced, is(false));
+      done.set(true);
+    });
+
+    await().untilTrue(start);
+    future.complete(null);
+
+    await().untilTrue(done);
+    assertThat(cache.synchronous().asMap().get(key), is(nullValue()));
   }
 
   /* --------------- replaceAll --------------- */
@@ -1006,6 +1161,31 @@ public final class AsMapTest {
     assertThat(map.size(), is(1 + context.original().size()));
   }
 
+  @Test(dataProvider = "caches")
+  @CacheSpec(population = Population.EMPTY,
+      removalListener = {Listener.DEFAULT, Listener.REJECTING})
+  public void computeIfAbsent_async_null(AsyncCache<Integer, Integer> cache, CacheContext context) {
+    Integer key = context.absentKey();
+    Integer newValue = context.absentValue();
+    CompletableFuture<Integer> future = new CompletableFuture<>();
+
+    cache.put(key, future);
+    AtomicBoolean start = new AtomicBoolean();
+    AtomicBoolean done = new AtomicBoolean();
+    ConcurrentTestHarness.execute(() -> {
+      start.set(true);
+      Integer result = cache.synchronous().asMap().computeIfAbsent(key, k -> newValue);
+      assertThat(result, is(newValue));
+      done.set(true);
+    });
+
+    await().untilTrue(start);
+    future.complete(null);
+
+    await().untilTrue(done);
+    assertThat(cache.synchronous().asMap().get(key), is(newValue));
+  }
+
   /* --------------- computeIfPresent --------------- */
 
   @CheckNoWriter @CheckNoStats
@@ -1118,6 +1298,32 @@ public final class AsMapTest {
     }
     assertThat(map.size(), is(context.original().size()));
     assertThat(map, hasRemovalNotifications(context, count, RemovalCause.REPLACED));
+  }
+
+  @Test(dataProvider = "caches")
+  @CacheSpec(population = Population.EMPTY,
+      removalListener = {Listener.DEFAULT, Listener.REJECTING})
+  public void computeIfPresent_async_null(
+      AsyncCache<Integer, Integer> cache, CacheContext context) {
+    Integer key = context.absentKey();
+    Integer newValue = context.absentValue();
+    CompletableFuture<Integer> future = new CompletableFuture<>();
+
+    cache.put(key, future);
+    AtomicBoolean start = new AtomicBoolean();
+    AtomicBoolean done = new AtomicBoolean();
+    ConcurrentTestHarness.execute(() -> {
+      start.set(true);
+      Integer result = cache.synchronous().asMap().computeIfPresent(key, (k, oldValue) -> newValue);
+      assertThat(result, is(nullValue()));
+      done.set(true);
+    });
+
+    await().untilTrue(start);
+    future.complete(null);
+
+    await().untilTrue(done);
+    assertThat(cache.synchronous().asMap().get(key), is(nullValue()));
   }
 
   /* --------------- compute --------------- */
@@ -1256,6 +1462,32 @@ public final class AsMapTest {
     }
     assertThat(map.size(), is(context.original().size()));
     assertThat(map, hasRemovalNotifications(context, count, RemovalCause.REPLACED));
+  }
+
+  @Test(dataProvider = "caches")
+  @CacheSpec(population = Population.EMPTY,
+      removalListener = {Listener.DEFAULT, Listener.REJECTING})
+  public void compute_async_null(
+      AsyncCache<Integer, Integer> cache, CacheContext context) {
+    Integer key = context.absentKey();
+    Integer newValue = context.absentValue();
+    CompletableFuture<Integer> future = new CompletableFuture<>();
+
+    cache.put(key, future);
+    AtomicBoolean start = new AtomicBoolean();
+    AtomicBoolean done = new AtomicBoolean();
+    ConcurrentTestHarness.execute(() -> {
+      start.set(true);
+      Integer result = cache.synchronous().asMap().compute(key, (k, oldValue) -> newValue);
+      assertThat(result, is(newValue));
+      done.set(true);
+    });
+
+    await().untilTrue(start);
+    future.complete(null);
+
+    await().untilTrue(done);
+    assertThat(cache.synchronous().asMap().get(key), is(newValue));
   }
 
   /* --------------- merge --------------- */
@@ -1398,6 +1630,33 @@ public final class AsMapTest {
     }
     assertThat(map.size(), is(context.original().size()));
     assertThat(map, hasRemovalNotifications(context, count, RemovalCause.REPLACED));
+  }
+
+  @Test(dataProvider = "caches")
+  @CacheSpec(population = Population.EMPTY,
+      removalListener = {Listener.DEFAULT, Listener.REJECTING})
+  public void merge_async_null(
+      AsyncCache<Integer, Integer> cache, CacheContext context) {
+    Integer key = context.absentKey();
+    Integer newValue = context.absentValue();
+    CompletableFuture<Integer> future = new CompletableFuture<>();
+
+    cache.put(key, future);
+    AtomicBoolean start = new AtomicBoolean();
+    AtomicBoolean done = new AtomicBoolean();
+    ConcurrentTestHarness.execute(() -> {
+      start.set(true);
+      Integer result = cache.synchronous().asMap()
+          .merge(key, newValue, (k, oldValue) -> newValue + 1);
+      assertThat(result, is(newValue));
+      done.set(true);
+    });
+
+    await().untilTrue(start);
+    future.complete(null);
+
+    await().untilTrue(done);
+    assertThat(cache.synchronous().asMap().get(key), is(newValue));
   }
 
   /* --------------- equals / hashCode --------------- */

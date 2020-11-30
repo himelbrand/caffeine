@@ -26,6 +26,7 @@ import org.testng.annotations.Test;
 /**
  * @author ben.manes@gmail.com (Ben Manes)
  */
+@SuppressWarnings("deprecation")
 public final class UnsafeAccessTest {
 
   @Test

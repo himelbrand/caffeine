@@ -26,7 +26,7 @@ import java.util.Objects;
  * @author ben.manes@gmail.com (Ben Manes)
  */
 public class AccessEvent {
-  private final Long key;
+  private final long key;
 
   private AccessEvent(long key) {
     this.key = key;
@@ -42,12 +42,12 @@ public class AccessEvent {
     return 1;
   }
 
-  /** Returns the hit penalty of the entry */
+  /** Returns the hit penalty of the entry. */
   public double hitPenalty() {
     return 0;
   }
 
-  /** Returns the miss penalty of the entry */
+  /** Returns the miss penalty of the entry. */
   public double missPenalty() {
     return 0;
   }
@@ -58,6 +58,11 @@ public class AccessEvent {
     double eventHP = this.hitPenalty();
     return eventMP - eventHP;
   }
+  /** Returns if the trace supplies the hit/miss penalty for this entry. */
+  public boolean isPenaltyAware() {
+    return false;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (o == this) {
@@ -106,20 +111,13 @@ public class AccessEvent {
     private final int weight;
 
     WeightedAccessEvent(long key, int weight) {
-      super(cantorHashCode(key, weight));
+      super(key);
       this.weight = weight;
       checkArgument(weight >= 0);
     }
-
-    @Override
-    public int weight() {
+    @Override public int weight() {
       return weight;
     }
-  }
-
-  /** Cantor pairing function. */
-  private static long cantorHashCode(long key, int weight) {
-    return (key + weight) * (key + weight + 1) / 2 + weight;
   }
 
   private static final class PenaltiesAccessEvent extends AccessEvent {
@@ -133,15 +131,14 @@ public class AccessEvent {
       checkArgument(hitPenalty >= 0);
       checkArgument(missPenalty >= 0);
     }
-
-    @Override
-    public double missPenalty() {
+    @Override public double missPenalty() {
       return missPenalty;
     }
-
-    @Override
-    public double hitPenalty() {
+    @Override public double hitPenalty() {
       return hitPenalty;
+    }
+    @Override public boolean isPenaltyAware() {
+      return true;
     }
   }
 }

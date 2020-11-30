@@ -1,6 +1,7 @@
 /** Cache simulator using tracing data and a family of eviction policy options. */
 import net.ltgt.gradle.errorprone.CheckSeverity
 
+apply from: "${rootDir}/gradle/autoValue.gradle"
 apply plugin:'application'
 
 mainClassName = 'com.github.benmanes.caffeine.cache.simulator.Simulator'
@@ -12,6 +13,7 @@ dependencies {
   implementation libraries.ohc
   implementation libraries.akka
   implementation libraries.ycsb
+  implementation libraries.zstd
   implementation libraries.guava
   implementation libraries.stream
   implementation libraries.tcache
@@ -77,6 +79,7 @@ run {
   systemProperties System.properties.findAll {
     it.getKey().startsWith('akka') || it.getKey().startsWith('caffeine')
   }
+  jvmArgs '-XX:+UseParallelGC', '-Xmx4g'
 }
 
 task rewrite(type: JavaExec) {

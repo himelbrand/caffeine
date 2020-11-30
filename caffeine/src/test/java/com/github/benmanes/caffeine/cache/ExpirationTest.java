@@ -25,6 +25,7 @@ import static com.github.benmanes.caffeine.testing.IsFutureValue.futureOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.aMapWithSize;
 import static org.hamcrest.Matchers.anEmptyMap;
+import static org.hamcrest.Matchers.arrayWithSize;
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
@@ -121,7 +122,7 @@ public final class ExpirationTest {
       expiry = { CacheExpiry.DISABLED, CacheExpiry.CREATE, CacheExpiry.WRITE, CacheExpiry.ACCESS },
       expireAfterAccess = {Expire.DISABLED, Expire.ONE_MINUTE}, expiryTime = Expire.ONE_MINUTE,
       expireAfterWrite = {Expire.DISABLED, Expire.ONE_MINUTE}, compute = Compute.SYNC,
-      scheduler = CacheScheduler.MOCK)
+      scheduler = CacheScheduler.MOCKITO)
   public void schedule(Cache<Integer, Integer> cache, CacheContext context) {
     ArgumentCaptor<Long> delay = ArgumentCaptor.forClass(long.class);
     ArgumentCaptor<Runnable> task = ArgumentCaptor.forClass(Runnable.class);
@@ -153,7 +154,7 @@ public final class ExpirationTest {
       expiry = { CacheExpiry.DISABLED, CacheExpiry.CREATE, CacheExpiry.WRITE, CacheExpiry.ACCESS },
       expireAfterAccess = {Expire.DISABLED, Expire.ONE_MINUTE}, expiryTime = Expire.ONE_MINUTE,
       expireAfterWrite = {Expire.DISABLED, Expire.ONE_MINUTE}, compute = Compute.SYNC,
-      scheduler = CacheScheduler.MOCK)
+      scheduler = CacheScheduler.MOCKITO)
   public void schedule_immediate(Cache<Integer, Integer> cache, CacheContext context) {
     doAnswer(invocation -> {
       invocation.getArgument(1, Runnable.class).run();
@@ -170,9 +171,8 @@ public final class ExpirationTest {
       expiry = { CacheExpiry.DISABLED, CacheExpiry.CREATE, CacheExpiry.WRITE, CacheExpiry.ACCESS },
       expireAfterAccess = {Expire.DISABLED, Expire.ONE_MINUTE},
       expireAfterWrite = {Expire.DISABLED, Expire.ONE_MINUTE}, expiryTime = Expire.ONE_MINUTE,
-      scheduler = CacheScheduler.MOCK, removalListener = Listener.MOCK)
-  public void schedule_delay(Cache<Integer, Duration> cache, CacheContext context)
-      throws InterruptedException {
+      scheduler = CacheScheduler.MOCKITO, removalListener = Listener.MOCK)
+  public void schedule_delay(Cache<Integer, Duration> cache, CacheContext context) {
     Map<Integer, Duration> actualExpirationPeriods = new HashMap<>();
     ArgumentCaptor<Long> delay = ArgumentCaptor.forClass(long.class);
     ArgumentCaptor<Runnable> task = ArgumentCaptor.forClass(Runnable.class);
@@ -185,9 +185,11 @@ public final class ExpirationTest {
     doAnswer(onRemoval).when(context.removalListener()).onRemoval(any(), any(), any());
     when(context.scheduler().schedule(any(), task.capture(), delay.capture(), any()))
         .thenReturn(Futures.immediateFuture(null));
+    Map<Integer, Duration> original = new HashMap<>();
 
     Integer key1 = 1;
     Duration value1 = Duration.ofNanos(context.ticker().read());
+    original.put(key1, value1);
     cache.put(key1, value1);
 
     Duration insertDelay = Duration.ofMillis(10);
@@ -195,6 +197,7 @@ public final class ExpirationTest {
 
     Integer key2 = 2;
     Duration value2 = Duration.ofNanos(context.ticker().read());
+    original.put(key2, value2);
     cache.put(key2, value2);
 
     Duration expireKey1 = Duration.ofNanos(1 + delay.getValue()).minus(insertDelay);
@@ -205,11 +208,16 @@ public final class ExpirationTest {
     context.ticker().advance(expireKey2);
     task.getValue().run();
 
+    if (context.expiresVariably()) {
+      context.ticker().advance(Pacer.TOLERANCE);
+      task.getValue().run();
+    }
+
     Duration maxExpirationPeriod = Duration.ofNanos(
         context.expiryTime().timeNanos() + Pacer.TOLERANCE);
-    assertThat(actualExpirationPeriods, is(aMapWithSize(2)));
     assertThat(actualExpirationPeriods.get(key1), is(lessThanOrEqualTo(maxExpirationPeriod)));
     assertThat(actualExpirationPeriods.get(key2), is(lessThanOrEqualTo(maxExpirationPeriod)));
+    assertThat(actualExpirationPeriods, is(aMapWithSize(original.size())));
   }
 
   /* --------------- Cache --------------- */
@@ -1401,6 +1409,42 @@ public final class ExpirationTest {
     });
 
     assertThat(cache.policy().eviction().get().weightedSize().getAsLong(), is(3L));
+  }
+
+  @Test(dataProvider = "caches")
+  @CacheSpec(removalListener = { Listener.DEFAULT, Listener.REJECTING },
+      mustExpireWithAnyOf = { AFTER_ACCESS, AFTER_WRITE, VARIABLE },
+      expiry = { CacheExpiry.DISABLED, CacheExpiry.CREATE, CacheExpiry.WRITE, CacheExpiry.ACCESS },
+      expireAfterAccess = {Expire.DISABLED, Expire.ONE_MINUTE},
+      expireAfterWrite = {Expire.DISABLED, Expire.ONE_MINUTE}, expiryTime = Expire.ONE_MINUTE)
+  public void keySetToArray(Map<Integer, Integer> map, CacheContext context) {
+    context.ticker().advance(2 * context.expiryTime().timeNanos(), TimeUnit.NANOSECONDS);
+    assertThat(map.keySet().toArray(new Integer[0]), arrayWithSize(0));
+    assertThat(map.keySet().toArray(), arrayWithSize(0));
+  }
+
+  @Test(dataProvider = "caches")
+  @CacheSpec(removalListener = { Listener.DEFAULT, Listener.REJECTING },
+      mustExpireWithAnyOf = { AFTER_ACCESS, AFTER_WRITE, VARIABLE },
+      expiry = { CacheExpiry.DISABLED, CacheExpiry.CREATE, CacheExpiry.WRITE, CacheExpiry.ACCESS },
+      expireAfterAccess = {Expire.DISABLED, Expire.ONE_MINUTE},
+      expireAfterWrite = {Expire.DISABLED, Expire.ONE_MINUTE}, expiryTime = Expire.ONE_MINUTE)
+  public void valuesToArray(Map<Integer, Integer> map, CacheContext context) {
+    context.ticker().advance(2 * context.expiryTime().timeNanos(), TimeUnit.NANOSECONDS);
+    assertThat(map.values().toArray(new Integer[0]), arrayWithSize(0));
+    assertThat(map.values().toArray(), arrayWithSize(0));
+  }
+
+  @Test(dataProvider = "caches")
+  @CacheSpec(removalListener = { Listener.DEFAULT, Listener.REJECTING },
+      mustExpireWithAnyOf = { AFTER_ACCESS, AFTER_WRITE, VARIABLE },
+      expiry = { CacheExpiry.DISABLED, CacheExpiry.CREATE, CacheExpiry.WRITE, CacheExpiry.ACCESS },
+      expireAfterAccess = {Expire.DISABLED, Expire.ONE_MINUTE},
+      expireAfterWrite = {Expire.DISABLED, Expire.ONE_MINUTE}, expiryTime = Expire.ONE_MINUTE)
+  public void entrySetToArray(Map<Integer, Integer> map, CacheContext context) {
+    context.ticker().advance(2 * context.expiryTime().timeNanos(), TimeUnit.NANOSECONDS);
+    assertThat(map.entrySet().toArray(new Map.Entry<?, ?>[0]), arrayWithSize(0));
+    assertThat(map.entrySet().toArray(), arrayWithSize(0));
   }
 
   /**

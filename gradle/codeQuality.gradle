@@ -1,12 +1,14 @@
 /**
  * Configurations for code quality analysis
  */
+import static org.gradle.util.GradleVersion.version
+
+apply plugin: 'org.kordamp.gradle.jandex'
 apply plugin: 'org.kordamp.gradle.stats'
 apply plugin: 'com.github.spotbugs'
 apply plugin: 'net.ltgt.errorprone'
 apply plugin: 'net.ltgt.nullaway'
 apply plugin: 'org.sonarqube'
-apply plugin: 'net.ltgt.apt'
 apply plugin: 'checkstyle'
 apply plugin: 'jacoco'
 apply plugin: 'java'
@@ -67,18 +69,18 @@ checkstyle {
 
 spotbugs {
   effort = 'max'
-  toolVersion = pluginVersions.spotbugs
   excludeFilter = file("${rootDir}/config/spotbugs/exclude.xml")
+  toolVersion = [version(pluginVersions.spotbugs), version(toolVersion.get())].max().version
 }
 
 pmd {
   ruleSets = []
-  toolVersion = pluginVersions.pmd
   ruleSetConfig = resources.text.fromFile(file("${rootDir}/config/pmd/rulesSets.xml"))
+  toolVersion = [version(pluginVersions.pmd), version(toolVersion)].max().version
 }
 
 jacoco {
-  toolVersion = pluginVersions.jacoco
+  toolVersion = [version(pluginVersions.jacoco), version(toolVersion)].max().version
 }
 
 jacocoTestReport {
@@ -101,6 +103,10 @@ task jacocoMerge(type: JacocoMerge) {
 
 sonarqube {
   properties {
+    property 'sonar.organization', 'caffeine'
+    property 'sonar.projectKey', 'caffeine:caffeine'
+    property 'sonar.login', System.env.'SONAR_TOKEN'
+    property 'sonar.host.url', 'https://sonarcloud.io'
     property 'sonar.jacoco.reportPath', jacocoMerge.destinationFile
   }
 }
@@ -131,6 +137,7 @@ tasks.withType(JavaCompile) {
     disable('EmptyCatch')
     disable('MissingSummary')
     error('NullAway')
+    excludedPaths = "${buildDir}/generated-sources/.*"
 
     nullaway {
       annotatedPackages.add('com.github.benmanes.caffeine')
@@ -150,7 +157,6 @@ tasks.withType(Test) {
     jvmArgs '-XX:SoftRefLRUPolicyMSPerMB=0'
   }
   if (System.env.'CI') {
-    maxHeapSize = '512m'
     reports.html.enabled = false
   }
   testLogging {

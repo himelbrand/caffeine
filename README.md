@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/ben-manes/caffeine.svg)](https://travis-ci.org/ben-manes/caffeine)
+[![Build Status](https://github.com/ben-manes/caffeine/workflows/build/badge.svg)](https://github.com/ben-manes/caffeine/actions?query=workflow%3Abuild)
 [![Coverage Status](https://img.shields.io/coveralls/ben-manes/caffeine.svg)](https://coveralls.io/r/ben-manes/caffeine?branch=master)
 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.github.ben-manes.caffeine/caffeine/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.github.ben-manes.caffeine/caffeine)
 [![JavaDoc](http://www.javadoc.io/badge/com.github.ben-manes.caffeine/caffeine.svg)](http://www.javadoc.io/doc/com.github.ben-manes.caffeine/caffeine)
@@ -82,11 +82,11 @@ Powering infrastructure near you:
 Download from [Maven Central][maven] or depend via Gradle:
 
 ```gradle
-compile 'com.github.ben-manes.caffeine:caffeine:2.8.5'
+compile 'com.github.ben-manes.caffeine:caffeine:2.8.6'
 
 // Optional extensions
-compile 'com.github.ben-manes.caffeine:guava:2.8.5'
-compile 'com.github.ben-manes.caffeine:jcache:2.8.5'
+compile 'com.github.ben-manes.caffeine:guava:2.8.6'
+compile 'com.github.ben-manes.caffeine:jcache:2.8.6'
 ```
 
 See the [release notes][releases] for details of the changes.
