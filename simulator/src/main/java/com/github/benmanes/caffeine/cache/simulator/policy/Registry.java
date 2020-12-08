@@ -20,6 +20,7 @@ import static java.util.Locale.US;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 
+import com.github.benmanes.caffeine.cache.simulator.policy.gd.GDWheel;
 import com.github.benmanes.caffeine.cache.simulator.policy.linked.LRBB;
 import com.github.benmanes.caffeine.cache.simulator.policy.sampled.HyperbolicLA;
 import com.github.benmanes.caffeine.cache.simulator.policy.sketch.WindowLAPolicy;
@@ -118,7 +119,7 @@ public final class Registry {
     registerProduct();
     registerTwoQueue();
     registerAdaptive();
-
+    registerGDWheel();
     Map<String, Factory> normalized = factories.entrySet().stream()
         .collect(toMap(entry -> entry.getKey().toLowerCase(US), Map.Entry::getValue));
     factories.clear();
@@ -128,6 +129,10 @@ public final class Registry {
   private void registerOptimal() {
     factories.put("opt.Clairvoyant", ClairvoyantPolicy::policies);
     factories.put("opt.Unbounded", UnboundedPolicy::policies);
+  }
+
+  private void registerGDWheel() {
+    factories.put("gd-wheel", GDWheel::policies);
   }
 
   private void registerLinked() {
