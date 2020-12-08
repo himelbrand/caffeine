@@ -133,7 +133,7 @@ public class GDWheel implements Policy {
         return policyStats;
     }
 
-    public class GDWheelSettings extends BasicSettings {
+    static class GDWheelSettings extends BasicSettings {
         public GDWheelSettings(Config config) {
             super(config);
         }
@@ -145,22 +145,22 @@ public class GDWheel implements Policy {
         }
     }
 
-    public class CostWheel {
+    static class CostWheel {
         ArrayList<PriorityQueue<AccessEvent>> wheel;
         int current_index;
-        int nq;
-        public CostWheel(int nq){
+        int NQ;
+        public CostWheel(int NQ){
             this.wheel = new ArrayList<>();
             Comparator<AccessEvent> comparator = new EventComparator();
-            for(int i=0;i<nq;i++){
+            for(int i=0;i<NQ;i++){
                 this.wheel.add(new PriorityQueue<>(comparator));
             }
             this.current_index = 0;
-            this.nq = nq;
+            this.NQ = NQ;
         }
         public int getNextIndex(){
-            for(int i=current_index;i<current_index+nq;i++){
-                int j = i%nq;
+            for(int i=current_index;i<current_index+NQ;i++){
+                int j = i%NQ;
                 if(!wheel.get(j).isEmpty()){
                     current_index = j;
                     break;
@@ -190,7 +190,7 @@ public class GDWheel implements Policy {
         }
     }
 
-    public class EventComparator implements Comparator<AccessEvent> {
+    static class EventComparator implements Comparator<AccessEvent> {
         @Override
         public int compare(AccessEvent e1, AccessEvent e2) {
             double res = e1.missPenalty() - e2.missPenalty();
@@ -204,7 +204,7 @@ public class GDWheel implements Policy {
         }
     }
 
-    public class Node {
+    static class Node {
         AccessEvent event;
         long key;
         int wheel;
