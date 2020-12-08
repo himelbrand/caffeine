@@ -67,7 +67,7 @@ public final class HyperbolicLA implements Policy {
 
   public HyperbolicLA(Admission admission, Config config) {
     SampledSettings settings = new SampledSettings(config);
-    this.policyStats = new PolicyStats(admission.format(String.format("sampled.HyperbolicLA-%s",settings.sampleStrategyName())));
+    this.policyStats = new PolicyStats(admission.format("sampled.HyperbolicLA"));
     this.admittor = admission.from(config, policyStats);
     this.maximumSize = Ints.checkedCast(settings.maximumSize());
     this.sampleStrategy = settings.sampleStrategy();
