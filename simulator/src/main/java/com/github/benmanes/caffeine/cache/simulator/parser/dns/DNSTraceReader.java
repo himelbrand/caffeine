@@ -43,7 +43,7 @@ public final class DNSTraceReader extends TextTraceReader {
   }
 
   @Override
-  public Stream<AccessEvent> events() throws IOException {
+  public Stream<AccessEvent> events() {
     return lines()
         .map(line -> line.split(" ", 3))
         .map(

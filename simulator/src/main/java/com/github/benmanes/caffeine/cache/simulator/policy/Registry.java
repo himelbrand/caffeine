@@ -21,6 +21,7 @@ import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 
 import com.github.benmanes.caffeine.cache.simulator.policy.linked.LRBB;
+import com.github.benmanes.caffeine.cache.simulator.policy.sampled.HyperbolicLA;
 import com.github.benmanes.caffeine.cache.simulator.policy.sketch.WindowLAPolicy;
 import com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.LAHillClimberWindowPolicy;
 import java.util.HashMap;
@@ -149,6 +150,7 @@ public final class Registry {
       String id = "sampled." + priority.name();
       factories.put(id, config -> SampledPolicy.policies(config, priority));
     });
+    factories.put("sampled.HyperbolicLA", HyperbolicLA::policies);
   }
 
   private void registerTwoQueue() {

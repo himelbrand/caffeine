@@ -94,11 +94,13 @@ public class PolicyStats {
         .build());
     addPercentMetric("Adaption", this::percentAdaption);
     addMetric("Average Miss Penalty", this::averageMissPenalty);
-    addMetric("Average Penalty", this::avergePenalty);
+    addMetric("Average Penalty", this::averagePenalty);
     addMetric("Steps", this::operationCount);
     addMetric("Time", this::stopwatch);
   }
-
+ public void setName(String name){
+    this.name = name;
+ }
   public void addMetric(Metric metric) {
     metrics.put(metric.name(), requireNonNull(metric));
   }
