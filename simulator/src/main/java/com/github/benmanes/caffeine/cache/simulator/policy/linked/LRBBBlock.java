@@ -377,6 +377,13 @@ public final class LRBBBlock {
     }
 
     /**
+     * Updates the node's event without moving it
+     */
+    public void updateEvent(AccessEvent e) {
+      event = e;
+    }
+
+    /**
      * Updates the node's lastop without moving it
      */
     public void resetOp() {

@@ -185,17 +185,21 @@ public final class WindowLAPolicy implements Policy {
     if (node == null) {
       onMiss(event);
       policyStats.recordMiss();
-    } else if (headWindow.isHit(key)) {
-      onWindowHit(node);
-      policyStats.recordHit();
-    } else if (headProbation.isHit(key)) {
-      onProbationHit(node);
-      policyStats.recordHit();
-    } else if (headProtected.isHit(key)) {
-      onProtectedHit(node);
-      policyStats.recordHit();
     } else {
-      throw new IllegalStateException();
+      AccessEvent old_event = node.event();
+      node.updateEvent(AccessEvent.forKeyAndPenalties(event.key(), event.hitPenalty(), old_event.missPenalty()));
+      if (headWindow.isHit(key)) {
+        onWindowHit(node);
+        policyStats.recordHit();
+      } else if (headProbation.isHit(key)) {
+        onProbationHit(node);
+        policyStats.recordHit();
+      } else if (headProtected.isHit(key)) {
+        onProtectedHit(node);
+        policyStats.recordHit();
+      } else {
+        throw new IllegalStateException();
+      }
     }
   }
 

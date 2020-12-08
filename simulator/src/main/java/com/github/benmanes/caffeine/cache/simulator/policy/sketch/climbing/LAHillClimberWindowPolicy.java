@@ -150,6 +150,8 @@ public final class LAHillClimberWindowPolicy implements Policy {
       onMiss(event);
       policyStats.recordMiss();
     } else {
+      AccessEvent old_event = node.event();
+      node.updateEvent(AccessEvent.forKeyAndPenalties(event.key(), event.hitPenalty(), old_event.missPenalty()));
       if (headWindow.isHit(key)) {
         onWindowHit(node);
         policyStats.recordHit();

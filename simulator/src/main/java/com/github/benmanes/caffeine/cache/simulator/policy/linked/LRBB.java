@@ -127,6 +127,8 @@ public final class LRBB implements Policy {
       currentSize += weight;
       evict(event);
     } else {
+      AccessEvent old_event = old.event();
+      old.updateEvent(AccessEvent.forKeyAndPenalties(event.key(), event.hitPenalty(), old_event.missPenalty()));
       policyStats.recordWeightedHit(weight);
       onAccess(old);
     }
@@ -399,12 +401,22 @@ public final class LRBB implements Policy {
       lastTouch = System.nanoTime();
     }
 
+    /**
+     * Updates the node's event without moving it
+     */
+    public void updateEvent(AccessEvent e) {
+      event = e;
+    }
     public double avgBenefit() {
       return this.sentinel.totalBenefit / getSize();
     }
 
     public int getSize() {
       return this.sentinel.size;
+    }
+
+    public AccessEvent event(){
+      return this.event;
     }
 
     @Override
