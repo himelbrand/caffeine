@@ -63,6 +63,7 @@ public class PolicyStats {
   private long rejectedCount;
   private long operationCount;
   private double percentAdaption;
+  private final Map<Double, Long> timesCounts;
 
   @SuppressWarnings("AnnotateFormatMethod")
   public PolicyStats(String format, Object... args) {
@@ -98,9 +99,7 @@ public class PolicyStats {
     addMetric("Steps", this::operationCount);
     addMetric("Time", this::stopwatch);
   }
- public void setName(String name){
-    this.name = name;
- }
+
   public void addMetric(Metric metric) {
     metrics.put(metric.name(), requireNonNull(metric));
   }
@@ -169,7 +168,7 @@ public class PolicyStats {
   public void recordHitPenalty(double penalty) {
     hitPenalty += penalty;
 //    if(evictionCount() > 0)
-        timesCounts.merge(penalty,1,Long::sum);
+        timesCounts.merge(penalty, 1L,Long::sum);
   }
 
   public double hitPenalty() {
@@ -200,7 +199,7 @@ public class PolicyStats {
   public void recordMissPenalty(double penalty) {
     missPenalty += penalty;
 //    if(evictionCount() > 0)
-        timesCounts.merge(penalty,1,Long::sum);
+        timesCounts.merge(penalty,1L,Long::sum);
   }
 
   public double missPenalty() {

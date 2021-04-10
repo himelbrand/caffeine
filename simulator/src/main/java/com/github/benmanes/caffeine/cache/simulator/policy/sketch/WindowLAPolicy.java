@@ -60,10 +60,8 @@ public final class WindowLAPolicy implements Policy {
 
   public WindowLAPolicy(double percentMain, WindowLASettings settings, double k,
       double eps, double reset) {
-    String name = String
-        .format("sketch.WindowLATinyLfu (%.0f%%,k=%.2f,eps=%.3f)", 100 * (1.0d - percentMain), k,
+    this.policyStats = new PolicyStats("sketch.WindowLATinyLfu (%.0f%%,k=%.2f,eps=%.3f)", 100 * (1.0d - percentMain), k,
             eps);
-    this.policyStats = new PolicyStats(name);
     this.admittor = new LATinyLfu(settings.config(), policyStats);
     int maxMain = (int) (settings.maximumSize() * percentMain);
     this.maxProtected = (int) (maxMain * settings.percentMainProtected());

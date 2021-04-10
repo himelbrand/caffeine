@@ -39,6 +39,7 @@ import java.util.Set;
  *
  * @author himelbrand@gmail.com (Omri Himelbrand)
  */
+@Policy.PolicySpec(name = "linked.LRBB")
 public final class LRBB implements Policy {
 
   final Long2ObjectMap<Node> data;
@@ -93,11 +94,6 @@ public final class LRBB implements Policy {
       }
     }
     return policies;
-  }
-
-  @Override
-  public Set<Characteristic> characteristics() {
-    return Sets.immutableEnumSet(WEIGHTED);
   }
 
   @Override
@@ -228,12 +224,12 @@ public final class LRBB implements Policy {
         currVictim.resetOp();
       }
       rank = Math.pow(currVictim.event.delta(), Math.pow((double) currOp - currVictim.lastOp, -k));
-      if (rank == 0){
-        System.out.println(Math.pow((double) currOp - currVictim.lastOp, -k));
-        System.out.println(currVictim.event.delta());
-        System.out.println(currVictim.event.missPenalty());
-        System.out.println(currVictim.event.hitPenalty());
-      }
+//      if (rank == 0){
+//        System.out.println(Math.pow((double) currOp - currVictim.lastOp, -k));
+//        System.out.println(currVictim.event.delta());
+//        System.out.println(currVictim.event.missPenalty());
+//        System.out.println(currVictim.event.hitPenalty());
+//      }
       if (rank < minRank || victim == null || (rank == minRank
           && (double) currVictim.lastOp / currOp < (double) victim.lastOp / currOp)) {
         minRank = rank;
