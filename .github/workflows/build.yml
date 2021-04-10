@@ -5,23 +5,24 @@ env:
   ORG_GRADLE_PROJECT_checksumFailOn: build_finish
   ORG_GRADLE_PROJECT_checksumIgnore: false
   ORG_GRADLE_PROJECT_checksumPrint: true
-  MAX_JVM: 15
-  MIN_JVM: 8
+  MIN_JVM: 11
+  MAX_JVM: 16
 
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        java: [ 8, 15 ]
+        java: [ 11, 16 ]
     steps:
       - uses: actions/checkout@v2
       - name: Set up JDK ${{ matrix.java }}
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v2
         with:
+          distribution: 'zulu'
           java-version: ${{ matrix.java }}
       - name: Cache Gradle packages
-        uses: actions/cache@v2
+        uses: actions/cache@v2.1.4
         with:
           path: |
             ~/.gradle/wrapper
@@ -38,7 +39,8 @@ jobs:
           && endsWith(github.ref, github.event.repository.default_branch)
         env:
           COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
-        run: ./gradlew coveralls
+        run: ./gradlew coveralls -S
+        continue-on-error: true
       - name: SonarQube
         if: >
           matrix.java == env.MAX_JVM
@@ -47,7 +49,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: ./gradlew sonarqube
+        run: ./gradlew sonarqube -S
+        continue-on-error: true
       - name: Publish Snapshot
         if: >
           matrix.java == env.MIN_JVM
@@ -56,4 +59,7 @@ jobs:
         env:
           NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
           NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
-        run: ./gradlew publish
+          ORG_GRADLE_PROJECT_signingKeyId: 20BCF6B1
+          ORG_GRADLE_PROJECT_signingKey: ${{ secrets.OSSRH_GPG_SECRET_KEY }}
+          ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.OSSRH_GPG_SECRET_KEY_PASSWORD }}
+        run: ./gradlew publishToSonatype

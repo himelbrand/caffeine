@@ -17,13 +17,12 @@ package com.github.benmanes.caffeine.cache.simulator.policy.opt;
 
 import java.util.ArrayDeque;
 import java.util.Queue;
-import java.util.Set;
 
 import com.github.benmanes.caffeine.cache.simulator.BasicSettings;
 import com.github.benmanes.caffeine.cache.simulator.policy.AccessEvent;
 import com.github.benmanes.caffeine.cache.simulator.policy.Policy;
+import com.github.benmanes.caffeine.cache.simulator.policy.Policy.PolicySpec;
 import com.github.benmanes.caffeine.cache.simulator.policy.PolicyStats;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Ints;
 import com.typesafe.config.Config;
 
@@ -41,6 +40,7 @@ import it.unimi.dsi.fastutil.longs.LongArrayFIFOQueue;
  *
  * @author ben.manes@gmail.com (Ben Manes)
  */
+@PolicySpec(name = "opt.Clairvoyant")
 public final class ClairvoyantPolicy implements Policy {
   private final Long2ObjectMap<IntPriorityQueue> accessTimes;
   private final PolicyStats policyStats;
@@ -55,20 +55,10 @@ public final class ClairvoyantPolicy implements Policy {
   public ClairvoyantPolicy(Config config) {
     BasicSettings settings = new BasicSettings(config);
     maximumSize = Ints.checkedCast(settings.maximumSize());
-    policyStats = new PolicyStats("opt.Clairvoyant");
     accessTimes = new Long2ObjectOpenHashMap<>();
+    policyStats = new PolicyStats(name());
     infiniteTimestamp = Integer.MAX_VALUE;
     data = new IntRBTreeSet();
-  }
-
-  /** Returns all variations of this policy based on the configuration parameters. */
-  public static Set<Policy> policies(Config config) {
-    return ImmutableSet.of(new ClairvoyantPolicy(config));
-  }
-
-  @Override
-  public Set<Characteristic> characteristics() {
-    return ImmutableSet.of();
   }
 
   @Override
@@ -79,10 +69,10 @@ public final class ClairvoyantPolicy implements Policy {
 
     tick++;
     recorder.add(event);
-    IntPriorityQueue times = accessTimes.get(event.key().longValue());
+    IntPriorityQueue times = accessTimes.get(event.key());
     if (times == null) {
       times = new IntArrayFIFOQueue();
-      accessTimes.put(event.key().longValue(), times);
+      accessTimes.put(event.key(), times);
     }
     times.enqueue(tick);
   }
@@ -143,7 +133,7 @@ public final class ClairvoyantPolicy implements Policy {
       future = new LongArrayFIFOQueue(maximumSize);
     }
     @Override public void add(AccessEvent event) {
-      future.enqueue(event.key().longValue());
+      future.enqueue(event.key());
     }
     @Override public void process() {
       while (!future.isEmpty()) {

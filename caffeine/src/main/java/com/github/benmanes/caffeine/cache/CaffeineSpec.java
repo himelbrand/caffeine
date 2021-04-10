@@ -24,7 +24,6 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import com.github.benmanes.caffeine.cache.Caffeine.Strength;
@@ -142,7 +141,7 @@ public final class CaffeineSpec {
    * @return the parsed specification
    */
   @SuppressWarnings("StringSplitter")
-  public static @NonNull CaffeineSpec parse(@NonNull String specification) {
+  public static CaffeineSpec parse(String specification) {
     CaffeineSpec spec = new CaffeineSpec(specification);
     for (String option : specification.split(SPLIT_OPTIONS)) {
       spec.parseOption(option.trim());
@@ -331,22 +330,22 @@ public final class CaffeineSpec {
   }
 
   @Override
-  public boolean equals(Object o) {
+  public boolean equals(@Nullable Object o) {
     if (this == o) {
       return true;
     } else if (!(o instanceof CaffeineSpec)) {
       return false;
     }
     CaffeineSpec spec = (CaffeineSpec) o;
-    return Objects.equals(initialCapacity, spec.initialCapacity)
-        && Objects.equals(maximumSize, spec.maximumSize)
-        && Objects.equals(maximumWeight, spec.maximumWeight)
-        && Objects.equals(keyStrength, spec.keyStrength)
-        && Objects.equals(valueStrength, spec.valueStrength)
-        && Objects.equals(recordStats, spec.recordStats)
-        && Objects.equals(expireAfterWrite, spec.expireAfterWrite)
+    return Objects.equals(refreshAfterWrite, spec.refreshAfterWrite)
         && Objects.equals(expireAfterAccess, spec.expireAfterAccess)
-        && Objects.equals(refreshAfterWrite, spec.refreshAfterWrite);
+        && Objects.equals(expireAfterWrite, spec.expireAfterWrite)
+        && (initialCapacity == spec.initialCapacity)
+        && (maximumWeight == spec.maximumWeight)
+        && (valueStrength == spec.valueStrength)
+        && (keyStrength == spec.keyStrength)
+        && (maximumSize == spec.maximumSize)
+        && (recordStats == spec.recordStats);
   }
 
   @Override

@@ -15,8 +15,9 @@
  */
 package com.github.benmanes.caffeine.cache;
 
-import static com.github.benmanes.caffeine.cache.testing.CacheWriterVerifier.verifyWriter;
-import static com.github.benmanes.caffeine.cache.testing.HasRemovalNotifications.hasRemovalNotifications;
+import static com.github.benmanes.caffeine.cache.testing.RemovalListenerVerifier.verifyEvictionListener;
+import static com.github.benmanes.caffeine.cache.testing.RemovalListenerVerifier.verifyListeners;
+import static com.github.benmanes.caffeine.cache.testing.RemovalListenerVerifier.verifyRemovalListener;
 import static com.github.benmanes.caffeine.testing.IsEmptyMap.emptyMap;
 import static com.github.benmanes.caffeine.testing.IsFutureValue.futureOf;
 import static java.util.stream.Collectors.toMap;
@@ -27,6 +28,10 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import java.util.List;
 import java.util.Map;
@@ -34,7 +39,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 
-import org.mockito.Mockito;
 import org.testng.annotations.Listeners;
 import org.testng.annotations.Test;
 
@@ -42,7 +46,6 @@ import com.github.benmanes.caffeine.cache.testing.CacheContext;
 import com.github.benmanes.caffeine.cache.testing.CacheProvider;
 import com.github.benmanes.caffeine.cache.testing.CacheSpec;
 import com.github.benmanes.caffeine.cache.testing.CacheSpec.CacheWeigher;
-import com.github.benmanes.caffeine.cache.testing.CacheSpec.Compute;
 import com.github.benmanes.caffeine.cache.testing.CacheSpec.Expire;
 import com.github.benmanes.caffeine.cache.testing.CacheSpec.Implementation;
 import com.github.benmanes.caffeine.cache.testing.CacheSpec.Listener;
@@ -51,9 +54,7 @@ import com.github.benmanes.caffeine.cache.testing.CacheSpec.Maximum;
 import com.github.benmanes.caffeine.cache.testing.CacheSpec.Population;
 import com.github.benmanes.caffeine.cache.testing.CacheSpec.ReferenceType;
 import com.github.benmanes.caffeine.cache.testing.CacheSpec.Stats;
-import com.github.benmanes.caffeine.cache.testing.CacheSpec.Writer;
 import com.github.benmanes.caffeine.cache.testing.CacheValidationListener;
-import com.github.benmanes.caffeine.cache.testing.RejectingCacheWriter.DeleteException;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -90,6 +91,20 @@ public final class ReferenceTest {
     assertThat(cache.asMap().containsValue(value), is(false));
   }
 
+  @Test(dataProvider = "caches")
+  @CacheSpec(requiresWeakOrSoft = true,
+      population = Population.FULL, evictionListener = Listener.MOCKITO)
+  public void collect_evictionListenerFails(Cache<Integer, Integer> cache, CacheContext context) {
+    context.clear();
+    GcFinalization.awaitFullGc();
+
+    doThrow(RuntimeException.class)
+        .when(context.evictionListener()).onRemoval(any(), any(), any());
+    awaitFullCleanup(cache);
+    verify(context.evictionListener(), times((int) context.initialSize()))
+        .onRemoval(any(), any(), any());
+  }
+
   /* --------------- Cache --------------- */
 
   @Test(dataProvider = "caches")
@@ -115,30 +130,11 @@ public final class ReferenceTest {
     GcFinalization.awaitFullGc();
     assertThat(cache.get(key, k -> context.absentValue()), is(context.absentValue()));
 
+    awaitFullCleanup(cache);
     long count = context.initialSize() - cache.estimatedSize() + 1;
-    if (context.population() != Population.SINGLETON) {
-      assertThat(count, is(greaterThan(1L)));
-    }
-    assertThat(cache, hasRemovalNotifications(context, count, RemovalCause.COLLECTED));
-    verifyWriter(context, (verifier, writer) -> verifier.deletions(count, RemovalCause.COLLECTED));
-  }
+    assertThat(count, is(greaterThan(1L)));
 
-  @Test(dataProvider = "caches", expectedExceptions = DeleteException.class)
-  @CacheSpec(keys = ReferenceType.STRONG, values = {ReferenceType.WEAK, ReferenceType.SOFT},
-      implementation = Implementation.Caffeine, expireAfterAccess = Expire.DISABLED,
-      expireAfterWrite = Expire.DISABLED, maximumSize = Maximum.DISABLED,
-      weigher = CacheWeigher.DEFAULT, population = Population.FULL, stats = Stats.ENABLED,
-      compute = Compute.SYNC, removalListener = Listener.CONSUMING, writer = Writer.EXCEPTIONAL)
-  public void get_writerFails(Cache<Integer, Integer> cache, CacheContext context) {
-    Integer key = context.firstKey();
-    try {
-      context.clear();
-      GcFinalization.awaitFullGc();
-      cache.get(key, Function.identity());
-    } finally {
-      context.disableRejectingCacheWriter();
-      assertThat(cache.asMap().isEmpty(), is(false));
-    }
+    verifyListeners(context, verifier -> verifier.hasCount(count, RemovalCause.COLLECTED));
   }
 
   @Test(dataProvider = "caches")
@@ -156,13 +152,12 @@ public final class ReferenceTest {
   @Test(dataProvider = "caches")
   @CacheSpec(requiresWeakOrSoft = true, expireAfterAccess = Expire.DISABLED,
       expireAfterWrite = Expire.DISABLED, maximumSize = Maximum.DISABLED,
-      weigher = CacheWeigher.DEFAULT, population = Population.FULL, stats = Stats.ENABLED,
-      removalListener = Listener.CONSUMING)
+      weigher = CacheWeigher.DEFAULT, population = Population.FULL,
+      stats = Stats.ENABLED, removalListener = Listener.CONSUMING)
   public void put(Cache<Integer, Integer> cache, CacheContext context) {
     cache.put(context.firstKey(), context.absentValue());
     cache.put(context.absentKey(), context.absentValue());
-    Mockito.reset(new Object[] { context.cacheWriter() });
-    context.consumedNotifications().clear();
+    context.removalNotifications().clear();
 
     context.clear();
     GcFinalization.awaitFullGc();
@@ -171,26 +166,7 @@ public final class ReferenceTest {
     assertThat(cache.estimatedSize(), is(0L));
 
     long count = context.initialSize() + 1;
-    assertThat(cache, hasRemovalNotifications(context, count, RemovalCause.COLLECTED));
-    verifyWriter(context, (verifier, writer) -> verifier.deletions(count, RemovalCause.COLLECTED));
-  }
-
-  @Test(dataProvider = "caches", expectedExceptions = DeleteException.class)
-  @CacheSpec(keys = ReferenceType.STRONG, values = {ReferenceType.WEAK, ReferenceType.SOFT},
-      implementation = Implementation.Caffeine, expireAfterAccess = Expire.DISABLED,
-      expireAfterWrite = Expire.DISABLED, maximumSize = Maximum.DISABLED,
-      weigher = CacheWeigher.DEFAULT, population = Population.FULL, stats = Stats.ENABLED,
-      compute = Compute.SYNC, removalListener = Listener.CONSUMING, writer = Writer.EXCEPTIONAL)
-  public void put_writerFails(Cache<Integer, Integer> cache, CacheContext context) {
-    Integer key = context.firstKey();
-    try {
-      context.clear();
-      GcFinalization.awaitFullGc();
-      cache.put(key, context.absentValue());
-    } finally {
-      context.disableRejectingCacheWriter();
-      assertThat(cache.asMap().isEmpty(), is(false));
-    }
+    verifyListeners(context, verifier -> verifier.hasCount(count, RemovalCause.COLLECTED));
   }
 
   @Test(dataProvider = "caches")
@@ -209,26 +185,7 @@ public final class ReferenceTest {
     assertThat(cache.estimatedSize(), is(3L));
 
     long count = context.initialSize() - 2;
-    assertThat(cache, hasRemovalNotifications(context, count, RemovalCause.COLLECTED));
-    verifyWriter(context, (verifier, writer) -> verifier.deletions(count, RemovalCause.COLLECTED));
-  }
-
-  @Test(dataProvider = "caches", expectedExceptions = DeleteException.class)
-  @CacheSpec(keys = ReferenceType.STRONG, values = {ReferenceType.WEAK, ReferenceType.SOFT},
-      implementation = Implementation.Caffeine, expireAfterAccess = Expire.DISABLED,
-      expireAfterWrite = Expire.DISABLED, maximumSize = Maximum.DISABLED,
-      weigher = CacheWeigher.DEFAULT, population = Population.FULL, stats = Stats.ENABLED,
-      compute = Compute.SYNC, removalListener = Listener.CONSUMING, writer = Writer.EXCEPTIONAL)
-  public void putAll_writerFails(Cache<Integer, Integer> cache, CacheContext context) {
-    Integer key = context.firstKey();
-    try {
-      context.clear();
-      GcFinalization.awaitFullGc();
-      cache.putAll(ImmutableMap.of(key, context.absentValue()));
-    } finally {
-      context.disableRejectingCacheWriter();
-      assertThat(cache.asMap().isEmpty(), is(false));
-    }
+    verifyListeners(context, verifier -> verifier.hasCount(count, RemovalCause.COLLECTED));
   }
 
   @Test(dataProvider = "caches")
@@ -250,26 +207,7 @@ public final class ReferenceTest {
     assertThat(cache.estimatedSize(), is(0L));
 
     long count = context.initialSize() - 1;
-    assertThat(cache, hasRemovalNotifications(context, count, RemovalCause.COLLECTED));
-    verifyWriter(context, (verifier, writer) -> verifier.deletions(count, RemovalCause.COLLECTED));
-  }
-
-  @Test(dataProvider = "caches", expectedExceptions = DeleteException.class)
-  @CacheSpec(keys = ReferenceType.STRONG, values = {ReferenceType.WEAK, ReferenceType.SOFT},
-      implementation = Implementation.Caffeine, expireAfterAccess = Expire.DISABLED,
-      expireAfterWrite = Expire.DISABLED, maximumSize = Maximum.DISABLED,
-      weigher = CacheWeigher.DEFAULT, population = Population.FULL, stats = Stats.ENABLED,
-      compute = Compute.SYNC, removalListener = Listener.CONSUMING, writer = Writer.EXCEPTIONAL)
-  public void invalidate_writerFails(Cache<Integer, Integer> cache, CacheContext context) {
-    Integer key = context.firstKey();
-    try {
-      context.clear();
-      GcFinalization.awaitFullGc();
-      cache.invalidate(key);
-    } finally {
-      context.disableRejectingCacheWriter();
-      assertThat(cache.asMap().isEmpty(), is(false));
-    }
+    verifyListeners(context, verifier -> verifier.hasCount(count, RemovalCause.COLLECTED));
   }
 
   @Test(dataProvider = "caches")
@@ -287,26 +225,7 @@ public final class ReferenceTest {
     assertThat(cache.estimatedSize(), is(0L));
 
     long count = context.initialSize() - (context.isWeakKeys() ? keys.size() : 0);
-    assertThat(cache, hasRemovalNotifications(context, count, RemovalCause.COLLECTED));
-    verifyWriter(context, (verifier, writer) -> verifier.deletions(count, RemovalCause.COLLECTED));
-  }
-
-  @Test(dataProvider = "caches", expectedExceptions = DeleteException.class)
-  @CacheSpec(keys = ReferenceType.STRONG, values = {ReferenceType.WEAK, ReferenceType.SOFT},
-      implementation = Implementation.Caffeine, expireAfterAccess = Expire.DISABLED,
-      expireAfterWrite = Expire.DISABLED, maximumSize = Maximum.DISABLED,
-      weigher = CacheWeigher.DEFAULT, population = Population.FULL, stats = Stats.ENABLED,
-      compute = Compute.SYNC, removalListener = Listener.CONSUMING, writer = Writer.EXCEPTIONAL)
-  public void invalidateAll_writerFails(Cache<Integer, Integer> cache, CacheContext context) {
-    Set<Integer> keys = context.firstMiddleLastKeys();
-    try {
-      context.clear();
-      GcFinalization.awaitFullGc();
-      cache.invalidateAll(keys);
-    } finally {
-      context.disableRejectingCacheWriter();
-      assertThat(cache.asMap().isEmpty(), is(false));
-    }
+    verifyListeners(context, verifier -> verifier.hasCount(count, RemovalCause.COLLECTED));
   }
 
   @Test(dataProvider = "caches")
@@ -322,25 +241,7 @@ public final class ReferenceTest {
     assertThat(cache.estimatedSize(), is(0L));
 
     cache.invalidateAll();
-    assertThat(cache, hasRemovalNotifications(context, 0L, RemovalCause.EXPLICIT));
-    verifyWriter(context, (verifier, writer) -> verifier.deletions(0L, RemovalCause.EXPLICIT));
-  }
-
-  @Test(dataProvider = "caches", expectedExceptions = DeleteException.class)
-  @CacheSpec(keys = ReferenceType.STRONG, values = {ReferenceType.WEAK, ReferenceType.SOFT},
-      implementation = Implementation.Caffeine, expireAfterAccess = Expire.DISABLED,
-      expireAfterWrite = Expire.DISABLED, maximumSize = Maximum.DISABLED,
-      weigher = CacheWeigher.DEFAULT, population = Population.FULL, stats = Stats.ENABLED,
-      compute = Compute.SYNC, removalListener = Listener.CONSUMING, writer = Writer.EXCEPTIONAL)
-  public void invalidateAll_full_writerFails(Cache<Integer, Integer> cache, CacheContext context) {
-    try {
-      context.clear();
-      GcFinalization.awaitFullGc();
-      cache.invalidateAll();
-    } finally {
-      context.disableRejectingCacheWriter();
-      assertThat(cache.asMap().isEmpty(), is(false));
-    }
+    verifyListeners(context, verifier -> verifier.hasCount(0L, RemovalCause.EXPLICIT));
   }
 
   @Test(dataProvider = "caches")
@@ -356,23 +257,7 @@ public final class ReferenceTest {
     assertThat(cache.estimatedSize(), is(0L));
 
     long count = context.initialSize();
-    assertThat(cache, hasRemovalNotifications(context, count, RemovalCause.COLLECTED));
-    verifyWriter(context, (verifier, writer) -> verifier.deletions(count, RemovalCause.COLLECTED));
-  }
-
-  @Test(dataProvider = "caches")
-  @CacheSpec(keys = ReferenceType.STRONG, values = {ReferenceType.WEAK, ReferenceType.SOFT},
-      implementation = Implementation.Caffeine, expireAfterAccess = Expire.DISABLED,
-      expireAfterWrite = Expire.DISABLED, maximumSize = Maximum.DISABLED,
-      weigher = CacheWeigher.DEFAULT, population = Population.FULL, stats = Stats.ENABLED,
-      compute = Compute.SYNC, removalListener = Listener.CONSUMING, writer = Writer.EXCEPTIONAL)
-  public void cleanUp_writerFails(Cache<Integer, Integer> cache, CacheContext context) {
-    context.clear();
-    GcFinalization.awaitFullGc();
-    cache.cleanUp();
-
-    context.disableRejectingCacheWriter();
-    assertThat(cache.asMap().isEmpty(), is(false));
+    verifyListeners(context, verifier -> verifier.hasCount(count, RemovalCause.COLLECTED));
   }
 
   /* --------------- LoadingCache --------------- */
@@ -392,26 +277,7 @@ public final class ReferenceTest {
     assertThat(cache.get(key), is(value));
 
     long count = context.initialSize() - 1;
-    assertThat(cache, hasRemovalNotifications(context, count, RemovalCause.COLLECTED));
-    verifyWriter(context, (verifier, writer) -> verifier.deletions(count, RemovalCause.COLLECTED));
-  }
-
-  @Test(dataProvider = "caches", expectedExceptions = DeleteException.class)
-  @CacheSpec(keys = ReferenceType.STRONG, values = {ReferenceType.WEAK, ReferenceType.SOFT},
-      implementation = Implementation.Caffeine, expireAfterAccess = Expire.DISABLED,
-      expireAfterWrite = Expire.DISABLED, maximumSize = Maximum.DISABLED,
-      weigher = CacheWeigher.DEFAULT, population = Population.FULL, stats = Stats.ENABLED,
-      compute = Compute.SYNC, removalListener = Listener.CONSUMING, writer = Writer.EXCEPTIONAL)
-  public void get_writerFails(LoadingCache<Integer, Integer> cache, CacheContext context) {
-    Integer key = context.firstKey();
-    try {
-      context.clear();
-      GcFinalization.awaitFullGc();
-      cache.get(key);
-    } finally {
-      context.disableRejectingCacheWriter();
-      assertThat(cache.asMap().isEmpty(), is(false));
-    }
+    verifyListeners(context, verifier -> verifier.hasCount(count, RemovalCause.COLLECTED));
   }
 
   @Test(dataProvider = "caches")
@@ -430,27 +296,7 @@ public final class ReferenceTest {
     long count = context.initialSize() - (context.isStrongValues() ? keys.size() : 0);
 
     assertThat(cache.estimatedSize(), is((long) keys.size()));
-    assertThat(cache, hasRemovalNotifications(context, count, RemovalCause.COLLECTED));
-    verifyWriter(context, (verifier, writer) -> verifier.deletions(count, RemovalCause.COLLECTED));
-  }
-
-  @Test(dataProvider = "caches", expectedExceptions = DeleteException.class)
-  @CacheSpec(keys = ReferenceType.STRONG, values = {ReferenceType.WEAK, ReferenceType.SOFT},
-      implementation = Implementation.Caffeine, expireAfterAccess = Expire.DISABLED,
-      expireAfterWrite = Expire.DISABLED, maximumSize = Maximum.DISABLED,
-      weigher = CacheWeigher.DEFAULT, population = Population.FULL, stats = Stats.ENABLED,
-      removalListener = Listener.CONSUMING, writer = Writer.EXCEPTIONAL,
-      compute = Compute.SYNC, loader = {Loader.IDENTITY, Loader.BULK_IDENTITY})
-  public void getAll_writerFails(LoadingCache<Integer, Integer> cache, CacheContext context) {
-    Set<Integer> keys = context.firstMiddleLastKeys();
-    try {
-      context.clear();
-      GcFinalization.awaitFullGc();
-      cache.getAll(keys);
-    } finally {
-      context.disableRejectingCacheWriter();
-      assertThat(cache.asMap().isEmpty(), is(false));
-    }
+    verifyListeners(context, verifier -> verifier.hasCount(count, RemovalCause.COLLECTED));
   }
 
   @Test(dataProvider = "caches")
@@ -465,31 +311,13 @@ public final class ReferenceTest {
 
     GcFinalization.awaitFullGc();
     awaitFullCleanup(cache);
-    cache.refresh(key);
+    cache.refresh(key).join();
     assertThat(cache.estimatedSize(), is(1L));
     assertThat(cache.getIfPresent(key), is(not(value)));
 
     long count = context.initialSize() - 1;
-    assertThat(cache, hasRemovalNotifications(context, 1, RemovalCause.REPLACED));
-    assertThat(cache, hasRemovalNotifications(context, count, RemovalCause.COLLECTED));
-    verifyWriter(context, (verifier, writer) -> {
-      verifier.deletions(count, RemovalCause.COLLECTED);
-    });
-  }
-
-  @Test(dataProvider = "caches")
-  @CacheSpec(keys = ReferenceType.STRONG, values = {ReferenceType.WEAK, ReferenceType.SOFT},
-      implementation = Implementation.Caffeine, expireAfterAccess = Expire.DISABLED,
-      expireAfterWrite = Expire.DISABLED, maximumSize = Maximum.DISABLED,
-      weigher = CacheWeigher.DEFAULT, population = Population.FULL, stats = Stats.ENABLED,
-      compute = Compute.SYNC, removalListener = Listener.CONSUMING, writer = Writer.EXCEPTIONAL)
-  public void refresh_writerFails(LoadingCache<Integer, Integer> cache, CacheContext context) {
-    Integer key = context.firstKey();
-    context.clear();
-    GcFinalization.awaitFullGc();
-    cache.refresh(key);
-    context.disableRejectingCacheWriter();
-    assertThat(cache.asMap().isEmpty(), is(false));
+    verifyRemovalListener(context, verifier -> verifier.hasCount(1, RemovalCause.REPLACED));
+    verifyEvictionListener(context, verifier -> verifier.hasCount(count, RemovalCause.COLLECTED));
   }
 
   /* --------------- AsyncLoadingCache --------------- */
@@ -522,8 +350,7 @@ public final class ReferenceTest {
     assertThat(cache.get(context.absentKey()), is(futureOf(context.absentKey())));
 
     long count = context.initialSize();
-    assertThat(cache, hasRemovalNotifications(context, count, RemovalCause.COLLECTED));
-    verifyWriter(context, (verifier, writer) -> verifier.deletions(count, RemovalCause.COLLECTED));
+    verifyListeners(context, verifier -> verifier.hasCount(count, RemovalCause.COLLECTED));
   }
 
   @Test(dataProvider = "caches")
@@ -542,8 +369,7 @@ public final class ReferenceTest {
     long count = context.initialSize() - cache.synchronous().estimatedSize() + 1;
 
     assertThat(count, is(greaterThan((long) keys.size())));
-    assertThat(cache, hasRemovalNotifications(context, count, RemovalCause.COLLECTED));
-    verifyWriter(context, (verifier, writer) -> verifier.deletions(count, RemovalCause.COLLECTED));
+    verifyListeners(context, verifier -> verifier.hasCount(count, RemovalCause.COLLECTED));
   }
 
   @Test(dataProvider = "caches")
@@ -559,7 +385,7 @@ public final class ReferenceTest {
 
     long count = context.initialSize();
     assertThat(cache.synchronous().estimatedSize(), is(1L));
-    assertThat(cache, hasRemovalNotifications(context, count, RemovalCause.COLLECTED));
+    verifyListeners(context, verifier -> verifier.hasCount(count, RemovalCause.COLLECTED));
   }
 
   /* --------------- Map --------------- */
@@ -630,29 +456,11 @@ public final class ReferenceTest {
   public void clear(Map<Integer, Integer> map, CacheContext context) {
     context.clear();
     GcFinalization.awaitFullGc();
-    map.clear();
+    awaitFullCleanup(context.cache());
     long count = context.initialSize();
 
     assertThat(map.size(), is(0));
-    assertThat(map, hasRemovalNotifications(context, count, RemovalCause.COLLECTED));
-    verifyWriter(context, (verifier, writer) -> verifier.deletions(count, RemovalCause.COLLECTED));
-  }
-
-  @Test(dataProvider = "caches", expectedExceptions = DeleteException.class)
-  @CacheSpec(keys = ReferenceType.STRONG, values = {ReferenceType.WEAK, ReferenceType.SOFT},
-      implementation = Implementation.Caffeine, expireAfterAccess = Expire.DISABLED,
-      expireAfterWrite = Expire.DISABLED, maximumSize = Maximum.DISABLED,
-      weigher = CacheWeigher.DEFAULT, population = Population.FULL, stats = Stats.ENABLED,
-      compute = Compute.SYNC, removalListener = Listener.CONSUMING, writer = Writer.EXCEPTIONAL)
-  public void clear_writerFails(Map<Integer, Integer> map, CacheContext context) {
-    try {
-      context.clear();
-      GcFinalization.awaitFullGc();
-      map.clear();
-    } finally {
-      context.disableRejectingCacheWriter();
-      assertThat(map.keySet().isEmpty(), is(false));
-    }
+    verifyListeners(context, verifier -> verifier.hasCount(count, RemovalCause.COLLECTED));
   }
 
   @Test(dataProvider = "caches")
@@ -672,26 +480,7 @@ public final class ReferenceTest {
     assertThat(map.size(), is(1));
 
     long count = context.initialSize() - (context.isStrongValues() ? 1 : 0);
-    assertThat(map, hasRemovalNotifications(context, count, RemovalCause.COLLECTED));
-    verifyWriter(context, (verifier, writer) -> verifier.deletions(count, RemovalCause.COLLECTED));
-  }
-
-  @Test(dataProvider = "caches", expectedExceptions = DeleteException.class)
-  @CacheSpec(keys = ReferenceType.STRONG, values = {ReferenceType.WEAK, ReferenceType.SOFT},
-      implementation = Implementation.Caffeine, expireAfterAccess = Expire.DISABLED,
-      expireAfterWrite = Expire.DISABLED, maximumSize = Maximum.DISABLED,
-      weigher = CacheWeigher.DEFAULT, population = Population.FULL, stats = Stats.ENABLED,
-      compute = Compute.SYNC, removalListener = Listener.CONSUMING, writer = Writer.EXCEPTIONAL)
-  public void putIfAbsent_writerFails(Map<Integer, Integer> map, CacheContext context) {
-    Integer key = context.firstKey();
-    try {
-      context.clear();
-      GcFinalization.awaitFullGc();
-      map.putIfAbsent(key, context.absentValue());
-    } finally {
-      context.disableRejectingCacheWriter();
-      assertThat(map.isEmpty(), is(false));
-    }
+    verifyListeners(context, verifier -> verifier.hasCount(count, RemovalCause.COLLECTED));
   }
 
   @Test(dataProvider = "caches")
@@ -711,26 +500,7 @@ public final class ReferenceTest {
     assertThat(map.size(), is(1));
 
     long count = context.initialSize() - (context.isStrongValues() ? 1 : 0);
-    assertThat(map, hasRemovalNotifications(context, count, RemovalCause.COLLECTED));
-    verifyWriter(context, (verifier, writer) -> verifier.deletions(count, RemovalCause.COLLECTED));
-  }
-
-  @Test(dataProvider = "caches", expectedExceptions = DeleteException.class)
-  @CacheSpec(keys = ReferenceType.STRONG, values = {ReferenceType.WEAK, ReferenceType.SOFT},
-      implementation = Implementation.Caffeine, expireAfterAccess = Expire.DISABLED,
-      expireAfterWrite = Expire.DISABLED, maximumSize = Maximum.DISABLED,
-      weigher = CacheWeigher.DEFAULT, population = Population.FULL, stats = Stats.ENABLED,
-      compute = Compute.SYNC, removalListener = Listener.CONSUMING, writer = Writer.EXCEPTIONAL)
-  public void put_writerFails(Map<Integer, Integer> map, CacheContext context) {
-    Integer key = context.firstKey();
-    try {
-      context.clear();
-      GcFinalization.awaitFullGc();
-      map.put(key, context.absentValue());
-    } finally {
-      context.disableRejectingCacheWriter();
-      assertThat(map.isEmpty(), is(false));
-    }
+    verifyListeners(context, verifier -> verifier.hasCount(count, RemovalCause.COLLECTED));
   }
 
   @Test(dataProvider = "caches")
@@ -747,8 +517,6 @@ public final class ReferenceTest {
         context.isStrongValues() ? notNullValue() : nullValue()));
   }
 
-  // replace_writerFail: Not needed due to replacement being impossible
-
   @Test(dataProvider = "caches")
   @CacheSpec(requiresWeakOrSoft = true, expireAfterAccess = Expire.DISABLED,
       expireAfterWrite = Expire.DISABLED, maximumSize = Maximum.DISABLED,
@@ -762,8 +530,6 @@ public final class ReferenceTest {
     GcFinalization.awaitFullGc();
     assertThat(map.replace(key, value, context.absentValue()), is(true));
   }
-
-  // replace_writerFail: Not needed due to replacement being impossible
 
   @Test(dataProvider = "caches")
   @CacheSpec(requiresWeakOrSoft = true, expireAfterAccess = Expire.DISABLED,
@@ -780,26 +546,7 @@ public final class ReferenceTest {
     assertThat(map.size(), is(0));
 
     long count = context.initialSize() - (context.isStrongValues() ? 1 : 0);
-    assertThat(map, hasRemovalNotifications(context, count, RemovalCause.COLLECTED));
-    verifyWriter(context, (verifier, writer) -> verifier.deletions(count, RemovalCause.COLLECTED));
-  }
-
-  @Test(dataProvider = "caches", expectedExceptions = DeleteException.class)
-  @CacheSpec(keys = ReferenceType.STRONG, values = {ReferenceType.WEAK, ReferenceType.SOFT},
-      implementation = Implementation.Caffeine, expireAfterAccess = Expire.DISABLED,
-      expireAfterWrite = Expire.DISABLED, maximumSize = Maximum.DISABLED,
-      weigher = CacheWeigher.DEFAULT, population = Population.FULL, stats = Stats.ENABLED,
-      compute = Compute.SYNC, removalListener = Listener.CONSUMING, writer = Writer.EXCEPTIONAL)
-  public void remove_writerFails(Map<Integer, Integer> map, CacheContext context) {
-    Integer key = context.firstKey();
-    try {
-      context.clear();
-      GcFinalization.awaitFullGc();
-      map.remove(key);
-    } finally {
-      context.disableRejectingCacheWriter();
-      assertThat(map.isEmpty(), is(false));
-    }
+    verifyListeners(context, verifier -> verifier.hasCount(count, RemovalCause.COLLECTED));
   }
 
   @Test(dataProvider = "caches")
@@ -819,11 +566,8 @@ public final class ReferenceTest {
     assertThat(map.size(), is(0));
 
     long count = context.initialSize() - 1;
-    assertThat(map, hasRemovalNotifications(context, count, RemovalCause.COLLECTED));
-    verifyWriter(context, (verifier, writer) -> verifier.deletions(count, RemovalCause.COLLECTED));
+    verifyListeners(context, verifier -> verifier.hasCount(count, RemovalCause.COLLECTED));
   }
-
-  // removeConditionally_writerFail: Not needed due to removal being impossible
 
   @Test(dataProvider = "caches")
   @CacheSpec(requiresWeakOrSoft = true, expireAfterAccess = Expire.DISABLED,
@@ -841,26 +585,7 @@ public final class ReferenceTest {
     assertThat(map.size(), is(1));
 
     long count = context.initialSize() - (context.isStrongValues() ? 1 : 0);
-    assertThat(map, hasRemovalNotifications(context, count, RemovalCause.COLLECTED));
-    verifyWriter(context, (verifier, writer) -> verifier.deletions(count, RemovalCause.COLLECTED));
-  }
-
-  @Test(dataProvider = "caches", expectedExceptions = DeleteException.class)
-  @CacheSpec(keys = ReferenceType.STRONG, values = {ReferenceType.WEAK, ReferenceType.SOFT},
-      implementation = Implementation.Caffeine, expireAfterAccess = Expire.DISABLED,
-      expireAfterWrite = Expire.DISABLED, maximumSize = Maximum.DISABLED,
-      weigher = CacheWeigher.DEFAULT, population = Population.FULL, stats = Stats.ENABLED,
-      compute = Compute.SYNC, removalListener = Listener.CONSUMING, writer = Writer.EXCEPTIONAL)
-  public void computeIfAbsent_writerFails(Map<Integer, Integer> map, CacheContext context) {
-    Integer key = context.firstKey();
-    try {
-      context.clear();
-      GcFinalization.awaitFullGc();
-      map.computeIfAbsent(key, k -> context.absentValue());
-    } finally {
-      context.disableRejectingCacheWriter();
-      assertThat(map.isEmpty(), is(false));
-    }
+    verifyListeners(context, verifier -> verifier.hasCount(count, RemovalCause.COLLECTED));
   }
 
   @Test(dataProvider = "caches")
@@ -879,11 +604,8 @@ public final class ReferenceTest {
     assertThat(map.size(), is(context.isStrongValues() ? 1 : 0));
 
     long count = context.initialSize() - (context.isStrongValues() ? 1 : 0);
-    assertThat(map, hasRemovalNotifications(context, count, RemovalCause.COLLECTED));
-    verifyWriter(context, (verifier, writer) -> verifier.deletions(count, RemovalCause.COLLECTED));
+    verifyListeners(context, verifier -> verifier.hasCount(count, RemovalCause.COLLECTED));
   }
-
-  // computeIfPresent_writerFail: Not needed due to exiting without side-effects
 
   @Test(dataProvider = "caches")
   @CacheSpec(requiresWeakOrSoft = true, expireAfterAccess = Expire.DISABLED,
@@ -904,26 +626,7 @@ public final class ReferenceTest {
     assertThat(map.size(), is(1));
 
     long count = context.initialSize() - (context.isStrongValues() ? 1 : 0);
-    assertThat(map, hasRemovalNotifications(context, count, RemovalCause.COLLECTED));
-    verifyWriter(context, (verifier, writer) -> verifier.deletions(count, RemovalCause.COLLECTED));
-  }
-
-  @Test(dataProvider = "caches", expectedExceptions = DeleteException.class)
-  @CacheSpec(keys = ReferenceType.STRONG, values = {ReferenceType.WEAK, ReferenceType.SOFT},
-      implementation = Implementation.Caffeine, expireAfterAccess = Expire.DISABLED,
-      expireAfterWrite = Expire.DISABLED, maximumSize = Maximum.DISABLED,
-      weigher = CacheWeigher.DEFAULT, population = Population.FULL, stats = Stats.ENABLED,
-      compute = Compute.SYNC, removalListener = Listener.CONSUMING, writer = Writer.EXCEPTIONAL)
-  public void compute_writerFails(Map<Integer, Integer> map, CacheContext context) {
-    Integer key = context.firstKey();
-    try {
-      context.clear();
-      GcFinalization.awaitFullGc();
-      map.compute(key, (k, v) -> context.absentValue());
-    } finally {
-      context.disableRejectingCacheWriter();
-      assertThat(map.isEmpty(), is(false));
-    }
+    verifyListeners(context, verifier -> verifier.hasCount(count, RemovalCause.COLLECTED));
   }
 
   @Test(dataProvider = "caches")
@@ -946,26 +649,7 @@ public final class ReferenceTest {
     assertThat(map.size(), is(1));
 
     long count = context.initialSize() - (context.isStrongValues() ? 1 : 0);
-    assertThat(map, hasRemovalNotifications(context, count, RemovalCause.COLLECTED));
-    verifyWriter(context, (verifier, writer) -> verifier.deletions(count, RemovalCause.COLLECTED));
-  }
-
-  @Test(dataProvider = "caches", expectedExceptions = DeleteException.class)
-  @CacheSpec(keys = ReferenceType.STRONG, values = {ReferenceType.WEAK, ReferenceType.SOFT},
-      implementation = Implementation.Caffeine, expireAfterAccess = Expire.DISABLED,
-      expireAfterWrite = Expire.DISABLED, maximumSize = Maximum.DISABLED,
-      weigher = CacheWeigher.DEFAULT, population = Population.FULL, stats = Stats.ENABLED,
-      compute = Compute.SYNC, removalListener = Listener.CONSUMING, writer = Writer.EXCEPTIONAL)
-  public void merge_writerFails(Map<Integer, Integer> map, CacheContext context) {
-    Integer key = context.firstKey();
-    try {
-      context.clear();
-      GcFinalization.awaitFullGc();
-      map.merge(key, context.absentValue(), (k, v) -> v);
-    } finally {
-      context.disableRejectingCacheWriter();
-      assertThat(map.isEmpty(), is(false));
-    }
+    verifyListeners(context, verifier -> verifier.hasCount(count, RemovalCause.COLLECTED));
   }
 
   @Test(dataProvider = "caches")
@@ -984,8 +668,7 @@ public final class ReferenceTest {
   @CacheSpec(implementation = Implementation.Caffeine, requiresWeakOrSoft = true,
       expireAfterAccess = Expire.DISABLED, expireAfterWrite = Expire.DISABLED,
       maximumSize = Maximum.UNREACHABLE, weigher = CacheWeigher.COLLECTION,
-      population = Population.EMPTY, stats = Stats.ENABLED, removalListener = Listener.CONSUMING,
-      writer = Writer.DISABLED)
+      population = Population.EMPTY, stats = Stats.ENABLED, removalListener = Listener.CONSUMING)
   public void putIfAbsent_weighted(Cache<Integer, List<Integer>> cache, CacheContext context) {
     Integer key = context.absentKey();
     cache.put(key, ImmutableList.of(1));
@@ -1001,8 +684,7 @@ public final class ReferenceTest {
   @CacheSpec(implementation = Implementation.Caffeine, requiresWeakOrSoft = true,
       expireAfterAccess = Expire.DISABLED, expireAfterWrite = Expire.DISABLED,
       maximumSize = Maximum.UNREACHABLE, weigher = CacheWeigher.COLLECTION,
-      population = Population.EMPTY, stats = Stats.ENABLED, removalListener = Listener.DEFAULT,
-      writer = Writer.DISABLED)
+      population = Population.EMPTY, stats = Stats.ENABLED, removalListener = Listener.DEFAULT)
   public void put_weighted(Cache<Integer, List<Integer>> cache, CacheContext context) {
     Integer key = context.absentKey();
     cache.put(key, ImmutableList.of(1));
@@ -1017,8 +699,7 @@ public final class ReferenceTest {
   @CacheSpec(implementation = Implementation.Caffeine, requiresWeakOrSoft = true,
       expireAfterAccess = Expire.DISABLED, expireAfterWrite = Expire.DISABLED,
       maximumSize = Maximum.UNREACHABLE, weigher = CacheWeigher.COLLECTION,
-      population = Population.EMPTY, stats = Stats.ENABLED, removalListener = Listener.DEFAULT,
-      writer = Writer.DISABLED)
+      population = Population.EMPTY, stats = Stats.ENABLED, removalListener = Listener.DEFAULT)
   public void computeIfAbsent_weighted(Cache<Integer, List<Integer>> cache, CacheContext context) {
     Integer key = context.absentKey();
     cache.put(key, ImmutableList.of(1));
@@ -1033,8 +714,7 @@ public final class ReferenceTest {
   @CacheSpec(implementation = Implementation.Caffeine, requiresWeakOrSoft = true,
       expireAfterAccess = Expire.DISABLED, expireAfterWrite = Expire.DISABLED,
       maximumSize = Maximum.UNREACHABLE, weigher = CacheWeigher.COLLECTION,
-      population = Population.EMPTY, stats = Stats.ENABLED, removalListener = Listener.DEFAULT,
-      writer = Writer.DISABLED)
+      population = Population.EMPTY, stats = Stats.ENABLED, removalListener = Listener.DEFAULT)
   public void compute_weighted(Cache<Integer, List<Integer>> cache, CacheContext context) {
     Integer key = context.absentKey();
     cache.put(key, ImmutableList.of(1));
@@ -1048,8 +728,7 @@ public final class ReferenceTest {
   @CacheSpec(implementation = Implementation.Caffeine, requiresWeakOrSoft = true,
       expireAfterAccess = Expire.DISABLED, expireAfterWrite = Expire.DISABLED,
       maximumSize = Maximum.UNREACHABLE, weigher = CacheWeigher.COLLECTION,
-      population = Population.EMPTY, stats = Stats.ENABLED, removalListener = Listener.DEFAULT,
-      writer = Writer.DISABLED)
+      population = Population.EMPTY, stats = Stats.ENABLED, removalListener = Listener.DEFAULT)
   public void merge_weighted(Cache<Integer, List<Integer>> cache, CacheContext context) {
     Integer key = context.absentKey();
     cache.put(key, ImmutableList.of(1));
@@ -1069,7 +748,7 @@ public final class ReferenceTest {
   @CacheSpec(requiresWeakOrSoft = true, population = Population.FULL,
       expireAfterAccess = Expire.DISABLED, expireAfterWrite = Expire.DISABLED,
       maximumSize = Maximum.UNREACHABLE, weigher = CacheWeigher.DEFAULT,
-      stats = Stats.ENABLED, removalListener = Listener.DEFAULT, writer = Writer.DISABLED)
+      stats = Stats.ENABLED, removalListener = Listener.DEFAULT)
   public void keySetToArray(Map<Integer, Integer> map, CacheContext context) {
     context.clear();
     GcFinalization.awaitFullGc();
@@ -1081,7 +760,7 @@ public final class ReferenceTest {
   @CacheSpec(requiresWeakOrSoft = true, population = Population.FULL,
       expireAfterAccess = Expire.DISABLED, expireAfterWrite = Expire.DISABLED,
       maximumSize = Maximum.UNREACHABLE, weigher = CacheWeigher.DEFAULT,
-      stats = Stats.ENABLED, removalListener = Listener.DEFAULT, writer = Writer.DISABLED)
+      stats = Stats.ENABLED, removalListener = Listener.DEFAULT)
   public void valuesToArray(Map<Integer, Integer> map, CacheContext context) {
     context.clear();
     GcFinalization.awaitFullGc();
@@ -1093,7 +772,7 @@ public final class ReferenceTest {
   @CacheSpec(requiresWeakOrSoft = true, population = Population.FULL,
       expireAfterAccess = Expire.DISABLED, expireAfterWrite = Expire.DISABLED,
       maximumSize = Maximum.UNREACHABLE, weigher = CacheWeigher.DEFAULT,
-      stats = Stats.ENABLED, removalListener = Listener.DEFAULT, writer = Writer.DISABLED)
+      stats = Stats.ENABLED, removalListener = Listener.DEFAULT)
   public void entrySetToArray(Map<Integer, Integer> map, CacheContext context) {
     context.clear();
     GcFinalization.awaitFullGc();

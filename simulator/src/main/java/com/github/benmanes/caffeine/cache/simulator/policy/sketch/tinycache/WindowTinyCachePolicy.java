@@ -15,29 +15,27 @@
  */
 package com.github.benmanes.caffeine.cache.simulator.policy.sketch.tinycache;
 
-import java.util.Set;
-
 import com.github.benmanes.caffeine.cache.simulator.BasicSettings;
 import com.github.benmanes.caffeine.cache.simulator.admission.tinycache.TinyCache;
 import com.github.benmanes.caffeine.cache.simulator.admission.tinycache.TinyCacheWithGhostCache;
-import com.github.benmanes.caffeine.cache.simulator.policy.Policy;
 import com.github.benmanes.caffeine.cache.simulator.policy.Policy.KeyOnlyPolicy;
+import com.github.benmanes.caffeine.cache.simulator.policy.Policy.PolicySpec;
 import com.github.benmanes.caffeine.cache.simulator.policy.PolicyStats;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Ints;
 import com.typesafe.config.Config;
 
 /**
  * @author gilga1983@gmail.com (Gil Einziger)
  */
+@PolicySpec(name = "sketch.WindowTinyCache")
 public final class WindowTinyCachePolicy implements KeyOnlyPolicy {
   private final TinyCache window;
   private final PolicyStats policyStats;
   private final TinyCacheWithGhostCache tinyCache;
 
   public WindowTinyCachePolicy(Config config) {
+    policyStats = new PolicyStats(name());
     BasicSettings settings = new BasicSettings(config);
-    this.policyStats = new PolicyStats("sketch.WindowTinyCache");
     int maxSize = Ints.checkedCast(settings.maximumSize());
     if (maxSize <= 64) {
       window = null;
@@ -47,11 +45,6 @@ public final class WindowTinyCachePolicy implements KeyOnlyPolicy {
     }
     tinyCache = new TinyCacheWithGhostCache(
         (int) Math.ceil(maxSize / 64.0), 64, settings.randomSeed());
-  }
-
-  /** Returns all variations of this policy based on the configuration parameters. */
-  public static Set<Policy> policies(Config config) {
-    return ImmutableSet.of(new WindowTinyCachePolicy(config));
   }
 
   @Override

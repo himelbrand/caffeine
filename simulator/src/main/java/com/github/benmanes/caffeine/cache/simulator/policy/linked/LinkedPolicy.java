@@ -28,9 +28,9 @@ import com.github.benmanes.caffeine.cache.simulator.admission.Admission;
 import com.github.benmanes.caffeine.cache.simulator.admission.Admittor;
 import com.github.benmanes.caffeine.cache.simulator.policy.AccessEvent;
 import com.github.benmanes.caffeine.cache.simulator.policy.Policy;
+import com.github.benmanes.caffeine.cache.simulator.policy.Policy.PolicySpec;
 import com.github.benmanes.caffeine.cache.simulator.policy.PolicyStats;
 import com.google.common.base.MoreObjects;
-import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -42,6 +42,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
  *
  * @author ben.manes@gmail.com (Ben Manes)
  */
+@PolicySpec(characteristics = WEIGHTED)
 public final class LinkedPolicy implements Policy {
   final Long2ObjectMap<Node> data;
   final PolicyStats policyStats;
@@ -55,7 +56,7 @@ public final class LinkedPolicy implements Policy {
 
   public LinkedPolicy(Config config, Set<Characteristic> characteristics,
       Admission admission, EvictionPolicy policy) {
-    this.policyStats = new PolicyStats(admission.format("linked." + policy.label()));
+    this.policyStats = new PolicyStats(admission.format(policy.label()));
     this.admittor = admission.from(config, policyStats);
     this.weighted = characteristics.contains(WEIGHTED);
 
@@ -73,11 +74,6 @@ public final class LinkedPolicy implements Policy {
     return settings.admission().stream().map(admission ->
       new LinkedPolicy(config, characteristics, admission, policy)
     ).collect(toSet());
-  }
-
-  @Override
-  public Set<Characteristic> characteristics() {
-    return Sets.immutableEnumSet(WEIGHTED);
   }
 
   @Override
@@ -116,9 +112,12 @@ public final class LinkedPolicy implements Policy {
   private void evict(Node candidate) {
     if (currentSize > maximumSize) {
       while (currentSize > maximumSize) {
-        Node victim = policy.findVictim(sentinel, policyStats);
-        policyStats.recordEviction();
+        if (candidate.weight > maximumSize) {
+          evictEntry(candidate);
+          continue;
+        }
 
+        Node victim = policy.findVictim(sentinel, policyStats);
         boolean admit = admittor.admit(candidate.key, victim.key);
         if (admit) {
           evictEntry(victim);
@@ -132,6 +131,7 @@ public final class LinkedPolicy implements Policy {
   }
 
   private void evictEntry(Node node) {
+    policyStats.recordEviction();
     currentSize -= node.weight;
     data.remove(node.key);
     node.remove();
@@ -230,7 +230,7 @@ public final class LinkedPolicy implements Policy {
     };
 
     public String label() {
-      return StringUtils.capitalize(name().toLowerCase(US));
+      return "linked." + StringUtils.capitalize(name().toLowerCase(US));
     }
 
     /** Performs any operations required by the policy after a node was successfully retrieved. */

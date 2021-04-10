@@ -25,9 +25,8 @@ import com.github.benmanes.caffeine.cache.RemovalCause;
 import com.github.benmanes.caffeine.cache.simulator.BasicSettings;
 import com.github.benmanes.caffeine.cache.simulator.policy.AccessEvent;
 import com.github.benmanes.caffeine.cache.simulator.policy.Policy;
+import com.github.benmanes.caffeine.cache.simulator.policy.Policy.PolicySpec;
 import com.github.benmanes.caffeine.cache.simulator.policy.PolicyStats;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import com.typesafe.config.Config;
 
@@ -36,12 +35,13 @@ import com.typesafe.config.Config;
  *
  * @author ben.manes@gmail.com (Ben Manes)
  */
+@PolicySpec(name = "product.Caffeine", characteristics = WEIGHTED)
 public final class CaffeinePolicy implements Policy {
   private final Cache<Long, AccessEvent> cache;
   private final PolicyStats policyStats;
 
   public CaffeinePolicy(Config config, Set<Characteristic> characteristics) {
-    policyStats = new PolicyStats("product.Caffeine");
+    policyStats = new PolicyStats(name());
     BasicSettings settings = new BasicSettings(config);
     Caffeine<Long, AccessEvent> builder = Caffeine.newBuilder()
         .removalListener((Long key, AccessEvent value, RemovalCause cause) ->
@@ -55,15 +55,6 @@ public final class CaffeinePolicy implements Policy {
       builder.initialCapacity(Ints.saturatedCast(settings.maximumSize()));
     }
     cache = builder.build();
-  }
-
-  /** Returns all variations of this policy based on the configuration parameters. */
-  public static Set<Policy> policies(Config config, Set<Characteristic> characteristics) {
-    return ImmutableSet.of(new CaffeinePolicy(config, characteristics));
-  }
-
-  @Override public Set<Characteristic> characteristics() {
-    return Sets.immutableEnumSet(WEIGHTED);
   }
 
   @Override

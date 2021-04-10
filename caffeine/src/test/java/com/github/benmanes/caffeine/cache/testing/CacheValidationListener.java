@@ -18,11 +18,7 @@ package com.github.benmanes.caffeine.cache.testing;
 import static com.github.benmanes.caffeine.cache.IsValidAsyncCache.validAsyncCache;
 import static com.github.benmanes.caffeine.cache.IsValidCache.validCache;
 import static com.github.benmanes.caffeine.cache.IsValidMapView.validAsMap;
-import static com.github.benmanes.caffeine.cache.testing.CacheWriterVerifier.verifyWriter;
-import static com.github.benmanes.caffeine.cache.testing.HasStats.hasHitCount;
-import static com.github.benmanes.caffeine.cache.testing.HasStats.hasLoadFailureCount;
-import static com.github.benmanes.caffeine.cache.testing.HasStats.hasLoadSuccessCount;
-import static com.github.benmanes.caffeine.cache.testing.HasStats.hasMissCount;
+import static com.github.benmanes.caffeine.cache.testing.StatsVerifier.verifyStats;
 import static com.github.benmanes.caffeine.testing.Awaits.await;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
@@ -59,7 +55,7 @@ import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.Policy.Eviction;
-import com.github.benmanes.caffeine.cache.Policy.Expiration;
+import com.github.benmanes.caffeine.cache.Policy.FixedExpiration;
 import com.github.benmanes.caffeine.cache.Policy.VarExpiration;
 import com.github.benmanes.caffeine.cache.Reset;
 import com.github.benmanes.caffeine.cache.testing.CacheSpec.CacheExecutor;
@@ -67,7 +63,6 @@ import com.github.benmanes.caffeine.cache.testing.CacheSpec.CacheExpiry;
 import com.github.benmanes.caffeine.cache.testing.CacheSpec.CacheScheduler;
 import com.github.benmanes.caffeine.cache.testing.CacheSpec.ExecutorFailure;
 import com.github.benmanes.caffeine.cache.testing.CacheSpec.Implementation;
-import com.github.benmanes.caffeine.cache.testing.CacheSpec.Writer;
 
 /**
  * A listener that validates the internal structure after a successful test execution.
@@ -155,7 +150,6 @@ public final class CacheValidationListener implements ISuiteListener, IInvokedMe
       if (!foundCache) {
         assertThat(context.cache, is(validCache()));
       }
-      checkWriter(testResult, context);
       checkNoStats(testResult, context);
       checkExecutor(testResult, context);
     }
@@ -217,18 +211,6 @@ public final class CacheValidationListener implements ISuiteListener, IInvokedMe
     }
   }
 
-  /** Checks the writer if {@link CheckNoWriter} is found. */
-  private static void checkWriter(ITestResult testResult, CacheContext context) {
-    Method testMethod = testResult.getMethod().getConstructorOrMethod().getMethod();
-    CheckNoWriter checkWriter = testMethod.getAnnotation(CheckNoWriter.class);
-    if (checkWriter == null) {
-      return;
-    }
-
-    assertThat("Test requires CacheContext param for validation", context, is(not(nullValue())));
-    verifyWriter(context, (verifier, writer) -> verifier.zeroInteractions());
-  }
-
   /** Checks the statistics if {@link CheckNoStats} is found. */
   private static void checkNoStats(ITestResult testResult, CacheContext context) {
     Method testMethod = testResult.getMethod().getConstructorOrMethod().getMethod();
@@ -238,10 +220,7 @@ public final class CacheValidationListener implements ISuiteListener, IInvokedMe
     }
 
     assertThat("Test requires CacheContext param for validation", context, is(not(nullValue())));
-    assertThat(context, hasHitCount(0));
-    assertThat(context, hasMissCount(0));
-    assertThat(context, hasLoadSuccessCount(0));
-    assertThat(context, hasLoadFailureCount(0));
+    verifyStats(context, verifier -> verifier.hits(0).misses(0).success(0).failures(0));
   }
 
   /** Free memory by clearing unused resources after test execution. */
@@ -271,9 +250,6 @@ public final class CacheValidationListener implements ISuiteListener, IInvokedMe
     for (Object param : testResult.getParameters()) {
       if (param instanceof CacheContext) {
         CacheContext context = (CacheContext) param;
-        if (context.writer() == Writer.MOCKITO) {
-          Mockito.clearInvocations(context.cacheWriter());
-        }
         if (context.expiryType() == CacheExpiry.MOCKITO) {
           Mockito.clearInvocations(context.expiry());
         }
@@ -308,7 +284,7 @@ public final class CacheValidationListener implements ISuiteListener, IInvokedMe
       Object param = params[i];
       if ((param instanceof AsyncCache<?, ?>) || (param instanceof Cache<?, ?>)
           || (param instanceof Map<?, ?>) || (param instanceof Eviction<?, ?>)
-          || (param instanceof Expiration<?, ?>) || (param instanceof VarExpiration<?, ?>)
+          || (param instanceof FixedExpiration<?, ?>) || (param instanceof VarExpiration<?, ?>)
           || ((param instanceof CacheContext) && briefParams)) {
         params[i] = simpleNames.get(param.getClass(), key -> ((Class<?>) key).getSimpleName());
       } else if (param instanceof CacheContext) {

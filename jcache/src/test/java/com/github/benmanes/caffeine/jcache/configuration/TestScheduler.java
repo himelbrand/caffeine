@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Ben Manes. All Rights Reserved.
+ * Copyright 2021 Ben Manes. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,21 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.github.benmanes.caffeine.cache.testing;
+package com.github.benmanes.caffeine.jcache.configuration;
 
-import static java.lang.annotation.ElementType.METHOD;
-import static java.lang.annotation.RetentionPolicy.RUNTIME;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.Target;
-
-import com.github.benmanes.caffeine.cache.CacheWriter;
+import com.github.benmanes.caffeine.cache.Scheduler;
 
 /**
- * A test method with this annotation has indicated that no {@link CacheWriter} operations
- * occurred and the {@link CacheValidationListener} should verify that expectation.
- *
  * @author ben.manes@gmail.com (Ben Manes)
  */
-@Target(METHOD) @Retention(RUNTIME)
-public @interface CheckNoWriter {}
+public final class TestScheduler implements Scheduler {
+
+  @Override
+  public Future<?> schedule(Executor executor, Runnable command, long delay, TimeUnit unit) {
+    return Scheduler.disabledScheduler().schedule(executor, command, delay, unit);
+  }
+}

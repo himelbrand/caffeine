@@ -1,6 +1,6 @@
 import net.ltgt.gradle.errorprone.CheckSeverity
 
-apply plugin: 'com.github.mjdetullio.gradle.coverity'
+apply plugin: 'io.github.gradle-nexus.publish-plugin'
 apply plugin: 'com.github.ben-manes.versions'
 apply plugin: 'com.github.kt3k.coveralls'
 apply plugin: 'jacoco'
@@ -11,7 +11,6 @@ buildscript {
   repositories {
     gradlePluginPortal()
     mavenCentral()
-    jcenter()
   }
 
   dependencies {
@@ -34,16 +33,15 @@ allprojects {
   apply from: "${rootDir}/gradle/eclipse.gradle"
 
   repositories {
-    jcenter()
     mavenCentral()
     maven { url 'https://jitpack.io' }
   }
 
   group = 'com.github.ben-manes.caffeine'
   version.with {
-    major = 2 // incompatible API changes
-    minor = 8 // backwards-compatible additions
-    patch = 7 // backwards-compatible bug fixes
+    major = 3 // incompatible API changes
+    minor = 0 // backwards-compatible additions
+    patch = 2 // backwards-compatible bug fixes
     releaseBuild = rootProject.hasProperty('release')
   }
 }
@@ -59,12 +57,11 @@ subprojects {
   apply from: "${rootDir}/gradle/dependencies.gradle"
   apply from: "${rootDir}/gradle/objectLayout.gradle"
 
-  sourceCompatibility = JavaVersion.VERSION_1_8
+  sourceCompatibility = JavaVersion.VERSION_11
   archivesBaseName = path[1..-1].replaceAll(':', '-').toLowerCase()
 
   dependencies {
     testImplementation libraries.guava
-    testImplementation libraries.jandex
     testImplementation testLibraries.mockito
     testImplementation testLibraries.hamcrest
     testImplementation testLibraries.awaitility
@@ -104,6 +101,15 @@ subprojects {
       "${project(':caffeine').buildDir}/docs/javadoc/",
     )
     javadoc.dependsOn(project(':caffeine').javadoc)
+  }
+}
+
+nexusPublishing {
+  repositories {
+    sonatype {
+      username = project.properties['nexusUsername'] ?: System.env.'NEXUS_USERNAME'
+      password = project.properties['nexusPassword'] ?: System.env.'NEXUS_PASSWORD'
+    }
   }
 }
 
@@ -147,7 +153,12 @@ tasks.coveralls {
   onlyIf { System.env.'CI' && !JavaVersion.current().isJava9Compatible() }
 }
 
-dependencyUpdates.resolutionStrategy {
-  force libraries.googleJavaFormat
-  force testLibraries.truth
+def isNonStable = { String version ->
+  def stableKeyword = ['RELEASE', 'FINAL', 'GA'].any { it -> version.toUpperCase().contains(it) }
+  def regex = /^[0-9,.v-]+(-r)?$/
+  return !stableKeyword && !(version ==~ regex)
+}
+
+dependencyUpdates.rejectVersionIf {
+  it.candidate.group == 'org.slf4j' && isNonStable(it.candidate.version)
 }

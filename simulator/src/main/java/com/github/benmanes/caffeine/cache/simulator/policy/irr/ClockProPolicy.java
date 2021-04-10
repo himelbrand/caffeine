@@ -17,14 +17,11 @@ package com.github.benmanes.caffeine.cache.simulator.policy.irr;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import java.util.Set;
-
 import com.github.benmanes.caffeine.cache.simulator.BasicSettings;
-import com.github.benmanes.caffeine.cache.simulator.policy.Policy;
 import com.github.benmanes.caffeine.cache.simulator.policy.Policy.KeyOnlyPolicy;
+import com.github.benmanes.caffeine.cache.simulator.policy.Policy.PolicySpec;
 import com.github.benmanes.caffeine.cache.simulator.policy.PolicyStats;
 import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Ints;
 import com.typesafe.config.Config;
 
@@ -49,6 +46,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
  * @author ben.manes@gmail.com (Ben Manes)
  * @author park910113@gmail.com (Chanyoung Park)
  */
+@PolicySpec(name = "irr.ClockPro")
 public final class ClockProPolicy implements KeyOnlyPolicy {
   private final Long2ObjectMap<Node> data;
   private final PolicyStats policyStats;
@@ -105,19 +103,12 @@ public final class ClockProPolicy implements KeyOnlyPolicy {
     if (maxResColdSize > maxSize - minResColdSize) {
       maxResColdSize = maxSize - minResColdSize;
     }
-    this.policyStats = new PolicyStats("irr.ClockPro");
+    this.policyStats = new PolicyStats(name());
     this.data = new Long2ObjectOpenHashMap<>();
     this.coldTarget = minResColdSize;
     this.listHead = this.handHot = this.handCold = this.handTest = null;
     this.sizeFree = maxSize;
     checkState(minResColdSize <= maxResColdSize);
-  }
-
-  /**
-   * Returns all variations of this policy based on the configuration parameters.
-   */
-  public static Set<Policy> policies(Config config) {
-    return ImmutableSet.of(new ClockProPolicy(config));
   }
 
   @Override

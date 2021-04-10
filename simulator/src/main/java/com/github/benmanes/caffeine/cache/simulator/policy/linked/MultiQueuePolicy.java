@@ -19,14 +19,12 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.util.Arrays;
-import java.util.Set;
 
 import com.github.benmanes.caffeine.cache.simulator.BasicSettings;
-import com.github.benmanes.caffeine.cache.simulator.policy.Policy;
 import com.github.benmanes.caffeine.cache.simulator.policy.Policy.KeyOnlyPolicy;
+import com.github.benmanes.caffeine.cache.simulator.policy.Policy.PolicySpec;
 import com.github.benmanes.caffeine.cache.simulator.policy.PolicyStats;
 import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Ints;
 import com.typesafe.config.Config;
 
@@ -52,6 +50,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMap;
  *
  * @author ben.manes@gmail.com (Ben Manes)
  */
+@PolicySpec(name = "linked.MultiQueue")
 public final class MultiQueuePolicy implements KeyOnlyPolicy {
   private final Long2ObjectSortedMap<Node> out;
   private final Long2ObjectMap<Node> data;
@@ -67,21 +66,16 @@ public final class MultiQueuePolicy implements KeyOnlyPolicy {
   public MultiQueuePolicy(Config config) {
     MultiQueueSettings settings = new MultiQueueSettings(config);
     maximumSize = Ints.checkedCast(settings.maximumSize());
-    policyStats = new PolicyStats("linked.MultiQueue");
     threshold = new long[settings.numberOfQueues()];
     headQ = new Node[settings.numberOfQueues()];
     out = new Long2ObjectLinkedOpenHashMap<>();
+    policyStats = new PolicyStats(name());
     data = new Long2ObjectOpenHashMap<>();
     lifetime = settings.lifetime();
 
     Arrays.setAll(headQ, Node::sentinel);
     Arrays.setAll(threshold, i -> 1L << i);
     maxOut = (int) (maximumSize * settings.percentOut());
-  }
-
-  /** Returns all variations of this policy based on the configuration parameters. */
-  public static Set<Policy> policies(Config config) {
-    return ImmutableSet.of(new MultiQueuePolicy(config));
   }
 
   @Override

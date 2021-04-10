@@ -15,7 +15,8 @@
  */
 package com.github.benmanes.caffeine.cache;
 
-import java.util.concurrent.atomic.AtomicReferenceArray;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.util.function.Consumer;
 
 /**
@@ -54,12 +55,13 @@ final class BoundedBuffer<E> extends StripedBuffer<E> {
   }
 
   static final class RingBuffer<E> extends BBHeader.ReadAndWriteCounterRef implements Buffer<E> {
-    final AtomicReferenceArray<E> buffer;
+    static final VarHandle BUFFER = MethodHandles.arrayElementVarHandle(Object[].class);
 
-    @SuppressWarnings({"unchecked", "cast", "rawtypes"})
+    final Object[] buffer;
+
     public RingBuffer(E e) {
-      buffer = new AtomicReferenceArray<>(BUFFER_SIZE);
-      buffer.lazySet(0, e);
+      buffer = new Object[BUFFER_SIZE];
+      BUFFER.set(buffer, 0, e);
     }
 
     @Override
@@ -72,7 +74,7 @@ final class BoundedBuffer<E> extends StripedBuffer<E> {
       }
       if (casWriteCounter(tail, tail + 1)) {
         int index = (int) (tail & MASK);
-        buffer.lazySet(index, e);
+        BUFFER.setRelease(buffer, index, e);
         return Buffer.SUCCESS;
       }
       return Buffer.FAILED;
@@ -88,12 +90,12 @@ final class BoundedBuffer<E> extends StripedBuffer<E> {
       }
       do {
         int index = (int) (head & MASK);
-        E e = buffer.get(index);
+        E e = (E) BUFFER.getVolatile(buffer, index);
         if (e == null) {
           // not published yet
           break;
         }
-        buffer.lazySet(index, null);
+        BUFFER.setRelease(buffer, index, null);
         consumer.accept(e);
         head++;
       } while (head != tail);
@@ -101,13 +103,13 @@ final class BoundedBuffer<E> extends StripedBuffer<E> {
     }
 
     @Override
-    public int reads() {
-      return (int) readCounter;
+    public long reads() {
+      return readCounter;
     }
 
     @Override
-    public int writes() {
-      return (int) writeCounter;
+    public long writes() {
+      return writeCounter;
     }
   }
 }
@@ -136,14 +138,7 @@ final class BBHeader {
 
   /** Enforces a memory layout to avoid false sharing by padding the read count. */
   abstract static class ReadCounterRef extends PadReadCounter {
-    static final long READ_OFFSET =
-        UnsafeAccess.objectFieldOffset(ReadCounterRef.class, "readCounter");
-
     volatile long readCounter;
-
-    void lazySetReadCounter(long count) {
-      UnsafeAccess.UNSAFE.putOrderedLong(this, READ_OFFSET, count);
-    }
   }
 
   abstract static class PadWriteCounter extends ReadCounterRef {
@@ -166,21 +161,34 @@ final class BBHeader {
 
   /** Enforces a memory layout to avoid false sharing by padding the write count. */
   abstract static class ReadAndWriteCounterRef extends PadWriteCounter {
-    static final long WRITE_OFFSET =
-        UnsafeAccess.objectFieldOffset(ReadAndWriteCounterRef.class, "writeCounter");
+    static final VarHandle READ, WRITE;
 
     volatile long writeCounter;
 
     ReadAndWriteCounterRef() {
-      UnsafeAccess.UNSAFE.putOrderedLong(this, WRITE_OFFSET, 1);
+      WRITE.setOpaque(this, 1);
+    }
+
+    void lazySetReadCounter(long count) {
+      READ.setOpaque(this, count);
     }
 
     long relaxedWriteCounter() {
-      return UnsafeAccess.UNSAFE.getLong(this, WRITE_OFFSET);
+      return (long) WRITE.get(this);
     }
 
     boolean casWriteCounter(long expect, long update) {
-      return UnsafeAccess.UNSAFE.compareAndSwapLong(this, WRITE_OFFSET, expect, update);
+      return WRITE.compareAndSet(this, expect, update);
+    }
+
+    static {
+      var lookup = MethodHandles.lookup();
+      try {
+        READ = lookup.findVarHandle(ReadCounterRef.class, "readCounter", long.class);
+        WRITE = lookup.findVarHandle(ReadAndWriteCounterRef.class, "writeCounter", long.class);
+      } catch (ReflectiveOperationException e) {
+        throw new ExceptionInInitializerError(e);
+      }
     }
   }
 }

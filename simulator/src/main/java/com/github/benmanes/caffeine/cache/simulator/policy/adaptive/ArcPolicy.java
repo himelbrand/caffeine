@@ -17,14 +17,11 @@ package com.github.benmanes.caffeine.cache.simulator.policy.adaptive;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import java.util.Set;
-
 import com.github.benmanes.caffeine.cache.simulator.BasicSettings;
-import com.github.benmanes.caffeine.cache.simulator.policy.Policy;
 import com.github.benmanes.caffeine.cache.simulator.policy.Policy.KeyOnlyPolicy;
+import com.github.benmanes.caffeine.cache.simulator.policy.Policy.PolicySpec;
 import com.github.benmanes.caffeine.cache.simulator.policy.PolicyStats;
 import com.google.common.base.MoreObjects;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Ints;
 import com.typesafe.config.Config;
 
@@ -48,6 +45,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
  *
  * @author ben.manes@gmail.com (Ben Manes)
  */
+@PolicySpec(name = "adaptive.Arc")
 public final class ArcPolicy implements KeyOnlyPolicy {
   // In Cache:
   // - T1: Pages that have been accessed at least once
@@ -77,17 +75,12 @@ public final class ArcPolicy implements KeyOnlyPolicy {
   public ArcPolicy(Config config) {
     BasicSettings settings = new BasicSettings(config);
     this.maximumSize = Ints.checkedCast(settings.maximumSize());
-    this.policyStats = new PolicyStats("adaptive.Arc");
+    this.policyStats = new PolicyStats(name());
     this.data = new Long2ObjectOpenHashMap<>();
     this.headT1 = new Node();
     this.headT2 = new Node();
     this.headB1 = new Node();
     this.headB2 = new Node();
-  }
-
-  /** Returns all variations of this policy based on the configuration parameters. */
-  public static Set<Policy> policies(Config config) {
-    return ImmutableSet.of(new ArcPolicy(config));
   }
 
   @Override

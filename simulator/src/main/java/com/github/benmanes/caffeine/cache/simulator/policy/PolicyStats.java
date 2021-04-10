@@ -38,8 +38,6 @@ import com.github.benmanes.caffeine.cache.simulator.policy.Policy.Characteristic
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableSet;
-import com.google.errorprone.annotations.FormatMethod;
-import com.google.errorprone.annotations.FormatString;
 
 import net.autobuilder.AutoBuilder;
 
@@ -52,8 +50,8 @@ import net.autobuilder.AutoBuilder;
 public class PolicyStats {
   private final Map<String, Metric> metrics;
   private final Stopwatch stopwatch;
+  private final String name;
 
-  private String name;
   private long hitCount;
   private long missCount;
   private long hitsWeight;
@@ -65,16 +63,13 @@ public class PolicyStats {
   private long rejectedCount;
   private long operationCount;
   private double percentAdaption;
-  private Double2LongMap timesCounts;
-  @FormatMethod
-  public PolicyStats(@FormatString String format, Object... args) {
-    this(String.format(format, args));
-  }
 
-  public PolicyStats(String name) {
-    this.name = requireNonNull(name);
-    this.metrics = new LinkedHashMap<>();
+  @SuppressWarnings("AnnotateFormatMethod")
+  public PolicyStats(String format, Object... args) {
     this.stopwatch = Stopwatch.createUnstarted();
+    this.name = String.format(format, args);
+    this.metrics = new LinkedHashMap<>();
+
     this.timesCounts = new Double2LongOpenHashMap();
     addMetric(Metric.of("Policy", (Supplier<String>) this::name, OBJECT, true));
     addMetric(Metric.of("Hit Rate", (DoubleSupplier) this::hitRate, PERCENT, true));
@@ -335,7 +330,6 @@ public class PolicyStats {
     public abstract boolean required();
     public abstract ImmutableSet<Characteristic> characteristics();
 
-    @SuppressWarnings("PMD.ShortMethodName")
     public static Metric of(String name, Object value, MetricType type, boolean required) {
       return builder().name(name).value(value).type(type).required(required).build();
     }
