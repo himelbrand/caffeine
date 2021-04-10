@@ -127,8 +127,7 @@ public final class LRBB implements Policy {
       currentSize += weight;
       evict(event);
     } else {
-      AccessEvent old_event = old.event();
-      old.updateEvent(AccessEvent.forKeyAndPenalties(event.key(), event.hitPenalty(), old_event.missPenalty()));
+      old.event.updateHitPenalty(event.hitPenalty());
       policyStats.recordWeightedHit(weight);
       onAccess(old);
     }
@@ -220,21 +219,21 @@ public final class LRBB implements Policy {
     double rank;
     Node victim = null;
     double minRank = Double.MAX_VALUE;
-    int maxSize = Integer.MAX_VALUE;
-
     for (Node currSentinel : lists) {
       if (currSentinel.next == currSentinel) {
         continue;
-      }
-      if (currSentinel.size < maxSize) {
-        maxSize = currSentinel.size;
       }
       Node currVictim = currSentinel.next;
       if (currVictim.lastTouch < lastReset) {
         currVictim.resetOp();
       }
       rank = Math.pow(currVictim.event.delta(), Math.pow((double) currOp - currVictim.lastOp, -k));
-
+      if (rank == 0){
+        System.out.println(Math.pow((double) currOp - currVictim.lastOp, -k));
+        System.out.println(currVictim.event.delta());
+        System.out.println(currVictim.event.missPenalty());
+        System.out.println(currVictim.event.hitPenalty());
+      }
       if (rank < minRank || victim == null || (rank == minRank
           && (double) currVictim.lastOp / currOp < (double) victim.lastOp / currOp)) {
         minRank = rank;

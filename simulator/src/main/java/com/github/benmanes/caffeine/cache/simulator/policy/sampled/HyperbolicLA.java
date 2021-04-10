@@ -112,6 +112,9 @@ public final class HyperbolicLA implements Policy {
     } else {
       policyStats.recordOperation();
       policyStats.recordHit();
+      node.event.updateHitPenalty(event.hitPenalty());
+//      AccessEvent old_event = node.event;
+//      node.updateEvent(AccessEvent.forKeyAndPenalties(event.key(), event.hitPenalty(), old_event.missPenalty()));
       node.accessTime = now;
       node.frequency++;
     }
@@ -221,7 +224,12 @@ public final class HyperbolicLA implements Policy {
       this.index = index;
       this.key = event.key();
     }
-
+    /**
+     * Updates the node's event without moving it
+     */
+    public void updateEvent(AccessEvent e) {
+      event = e;
+    }
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(this)

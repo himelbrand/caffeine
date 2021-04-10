@@ -24,10 +24,14 @@ import static org.apache.commons.lang3.builder.ToStringStyle.MULTI_LINE_STYLE;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.DoubleSupplier;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
+import it.unimi.dsi.fastutil.doubles.Double2LongMap;
+import it.unimi.dsi.fastutil.doubles.Double2LongOpenHashMap;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 
 import com.github.benmanes.caffeine.cache.simulator.policy.Policy.Characteristic;
@@ -61,7 +65,7 @@ public class PolicyStats {
   private long rejectedCount;
   private long operationCount;
   private double percentAdaption;
-
+  private Double2LongMap timesCounts;
   @FormatMethod
   public PolicyStats(@FormatString String format, Object... args) {
     this(String.format(format, args));
@@ -71,7 +75,7 @@ public class PolicyStats {
     this.name = requireNonNull(name);
     this.metrics = new LinkedHashMap<>();
     this.stopwatch = Stopwatch.createUnstarted();
-
+    this.timesCounts = new Double2LongOpenHashMap();
     addMetric(Metric.of("Policy", (Supplier<String>) this::name, OBJECT, true));
     addMetric(Metric.of("Hit Rate", (DoubleSupplier) this::hitRate, PERCENT, true));
     addMetric(Metric.of("Hits", (LongSupplier) this::hitCount, NUMBER, true));
@@ -95,6 +99,7 @@ public class PolicyStats {
     addPercentMetric("Adaption", this::percentAdaption);
     addMetric("Average Miss Penalty", this::averageMissPenalty);
     addMetric("Average Penalty", this::averagePenalty);
+    addMetric("P99",this::computeP99);
     addMetric("Steps", this::operationCount);
     addMetric("Time", this::stopwatch);
   }
@@ -168,6 +173,8 @@ public class PolicyStats {
 
   public void recordHitPenalty(double penalty) {
     hitPenalty += penalty;
+//    if(evictionCount() > 0)
+        timesCounts.merge(penalty,1,Long::sum);
   }
 
   public double hitPenalty() {
@@ -197,6 +204,8 @@ public class PolicyStats {
 
   public void recordMissPenalty(double penalty) {
     missPenalty += penalty;
+//    if(evictionCount() > 0)
+        timesCounts.merge(penalty,1,Long::sum);
   }
 
   public double missPenalty() {
@@ -245,6 +254,23 @@ public class PolicyStats {
 
   public double percentAdaption() {
     return percentAdaption;
+  }
+
+  public double computeP99() {
+      AtomicLong i = new AtomicLong();
+      long p99_idx = (long)(timesCounts.values().stream().reduce(Long::sum).get()*0.99);
+      AtomicReference<Double> p99 = new AtomicReference<>((double) 0);
+      timesCounts.keySet().stream().mapToDouble(x->x).sorted().forEach(key -> {
+                  long value = timesCounts.get(key);
+                  if (i.get() < p99_idx){
+                      long tmp = i.addAndGet(value);
+                      if (tmp >= p99_idx){
+                          p99.set(key);
+                      }
+                  }
+              }
+      );
+      return p99.get();
   }
 
   public void setPercentAdaption(double percentAdaption) {

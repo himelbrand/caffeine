@@ -97,7 +97,7 @@ public final class LinkedPolicy implements Policy {
         policyStats.recordOperation();
         return;
       }
-      Node node = new Node(key, weight, sentinel);
+      Node node = new Node(key, weight, sentinel,event);
       data.put(key, node);
       currentSize += node.weight;
       node.appendToTail();
@@ -187,7 +187,36 @@ public final class LinkedPolicy implements Policy {
         return sentinel.prev.prev;
       }
     },
+    LALRU3 {
 
+      @Override
+      void onAccess(Node node, PolicyStats policyStats) {
+        policyStats.recordOperation();
+        node.moveToTail();
+      }
+
+      @Override
+      Node findVictim(Node sentinel, PolicyStats policyStats) {
+        policyStats.recordOperation();
+        Node victim = sentinel.prev.prev;
+        Node curr = victim;
+        int pos = 1;
+        double minBenefit = Long.MAX_VALUE;
+        do {
+          double factor = 1.0 / pos; // Check other ranking functions too
+//          double currBenefit = curr.event.benefit() * factor;
+          double currBenefit = Math.pow(curr.event.delta() , factor);
+
+          if (currBenefit <= minBenefit) {
+            victim = curr;
+            minBenefit = currBenefit;
+          }
+          pos++;
+          curr = curr.prev;
+        } while (curr != sentinel);
+        return victim;
+      }
+    },
     /** Evicts entries based on how recently they are used, with the least recent evicted first. */
     LRU {
       @Override void onAccess(Node node, PolicyStats policyStats) {
@@ -220,6 +249,7 @@ public final class LinkedPolicy implements Policy {
     Node next;
     long key;
     int weight;
+    AccessEvent event;
 
     /** Creates a new sentinel node. */
     public Node() {
@@ -230,10 +260,11 @@ public final class LinkedPolicy implements Policy {
     }
 
     /** Creates a new, unlinked node. */
-    public Node(long key, int weight, Node sentinel) {
+    public Node(long key, int weight, Node sentinel,AccessEvent event) {
       this.sentinel = sentinel;
       this.key = key;
       this.weight = weight;
+      this.event = event;
     }
 
     /** Appends the node to the tail of the list. */

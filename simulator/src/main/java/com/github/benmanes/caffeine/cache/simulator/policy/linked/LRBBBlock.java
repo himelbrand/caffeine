@@ -187,13 +187,9 @@ public final class LRBBBlock {
     double rank;
     Node victim = null;
     double minRank = Double.MAX_VALUE;
-    int maxSize = Integer.MAX_VALUE;
     for (Node currSentinel : lists) {
       if (currSentinel.next == currSentinel) {
         continue;
-      }
-      if (currSentinel.size < maxSize) {
-        maxSize = currSentinel.size;
       }
       Node currVictim = currSentinel.next;
       if (currVictim.lastTouch < lastReset) {
@@ -244,7 +240,9 @@ public final class LRBBBlock {
       return new ArrayList<>();
     }
   }
-
+  public String type() {
+    return (maxLists == 1) ? "LRU" : "LRBB";
+  }
   /**
    * A node on the double-linked list.
    */

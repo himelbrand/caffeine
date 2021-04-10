@@ -84,9 +84,10 @@ public final class LAHillClimberWindowPolicy implements Policy {
     this.data = new Long2ObjectOpenHashMap<>();
     this.maximumSize = settings.maximumSize();
     boolean asLRU = settings.asLRU();
+    boolean windowAsLRU = settings.windowAsLRU();
     this.headProtected = new LRBBBlock(k, reset, eps, this.maxProtected, asLRU);
     this.headProbation = new LRBBBlock(k, reset, eps, maxMain - this.maxProtected, asLRU);
-    this.headWindow = new LRBBBlock(k, reset, eps, this.maxWindow, false);
+    this.headWindow = new LRBBBlock(k, reset, eps, this.maxWindow, windowAsLRU);
 
     this.strategy = strategy;
     this.initialPercentMain = percentMain;
@@ -100,7 +101,9 @@ public final class LAHillClimberWindowPolicy implements Policy {
 
   private String getPolicyName() {
     return String.format(
-        "LAHillClimberWindow (%s %.0f%% -> %.0f%%)(k=%.2f,eps=%.2f)",
+        "LAHillClimberWindow-%s-%s (%s %.0f%% -> %.0f%%)(k=%.2f,eps=%.2f)",
+        headWindow.type(),
+        headProtected.type(),
         strategy.name().toLowerCase(US),
         100 * (1.0 - initialPercentMain),
         (100.0 * maxWindow) / maximumSize, k, eps);
@@ -150,8 +153,8 @@ public final class LAHillClimberWindowPolicy implements Policy {
       onMiss(event);
       policyStats.recordMiss();
     } else {
-      AccessEvent old_event = node.event();
-      node.updateEvent(AccessEvent.forKeyAndPenalties(event.key(), event.hitPenalty(), old_event.missPenalty()));
+      node.event().updateHitPenalty(event.hitPenalty());
+//      node.updateEvent(AccessEvent.forKeyAndPenalties(event.key(), event.hitPenalty(), old_event.missPenalty()));
       if (headWindow.isHit(key)) {
         onWindowHit(node);
         policyStats.recordHit();
@@ -328,6 +331,8 @@ public final class LAHillClimberWindowPolicy implements Policy {
   @Override
   public void finished() {
     policyStats.setName(getPolicyName());
+    policyStats.setPercentAdaption(
+            (maxWindow / (double) maximumSize) - (1.0 - initialPercentMain));
     printSegmentSizes();
 
     long actualWindowSize = data.values().stream().filter(n -> headWindow.isHit(n.key())).count();
@@ -390,6 +395,9 @@ public final class LAHillClimberWindowPolicy implements Policy {
 
     public boolean asLRU() {
       return config().getBoolean("la-hill-climber-window.as-lru");
+    }
+    public boolean windowAsLRU() {
+      return config().getBoolean("la-hill-climber-window.window-as-lru");
     }
   }
 }

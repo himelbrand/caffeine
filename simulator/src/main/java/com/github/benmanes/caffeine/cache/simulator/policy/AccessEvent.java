@@ -63,6 +63,7 @@ public class AccessEvent {
     return false;
   }
 
+  public void updateHitPenalty(double hitPenalty) {}
   @Override
   public boolean equals(Object o) {
     if (o == this) {
@@ -122,7 +123,7 @@ public class AccessEvent {
 
   private static final class PenaltiesAccessEvent extends AccessEvent {
     private final double missPenalty;
-    private final double hitPenalty;
+    private double hitPenalty;
 
     PenaltiesAccessEvent(long key, double hitPenalty, double missPenalty) {
       super(key);
@@ -130,6 +131,10 @@ public class AccessEvent {
       this.missPenalty = missPenalty;
       checkArgument(hitPenalty >= 0);
       checkArgument(missPenalty >= 0);
+    }
+    @Override
+    public void updateHitPenalty(double hitPenalty) {
+      this.hitPenalty = hitPenalty;
     }
     @Override public double missPenalty() {
       return missPenalty;

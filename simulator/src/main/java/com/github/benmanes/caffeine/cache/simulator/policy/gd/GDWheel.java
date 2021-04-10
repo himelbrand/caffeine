@@ -98,11 +98,12 @@ public class GDWheel implements Policy {
             data.put(key,new Node(event,w,q));
         } else {
             policyStats.recordWeightedHit(event.weight());
-            AccessEvent old_event = node.event;
-            node.event = AccessEvent.forKeyAndPenalties(event.key(), event.hitPenalty(), old_event.missPenalty());
-            wheels[node.wheel].remove(node.q, old_event);
+            node.event.updateHitPenalty(event.hitPenalty());
+//            AccessEvent old_event = node.event;
+//            node.updateEvent(AccessEvent.forKeyAndPenalties(event.key(), event.hitPenalty(), old_event.missPenalty()));
+            wheels[node.wheel].remove(node.q, node.event);
             for(int i=0;i<NW;i++){
-                if(Math.round(old_event.missPenalty()/Math.pow(NQ,i)) > 0){
+                if(Math.round(node.event.missPenalty()/Math.pow(NQ,i)) > 0){
                     w = i;
                 }
             }
@@ -218,6 +219,12 @@ public class GDWheel implements Policy {
         public void updateLoc(int w, int q){
             this.wheel = w;
             this.q = q;
+        }
+        /**
+         * Updates the node's event without moving it
+         */
+        public void updateEvent(AccessEvent e) {
+            event = e;
         }
     }
 }

@@ -22,6 +22,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -63,6 +64,9 @@ public final class Rewriter implements Runnable {
   @Override
   public void run() {
     Stopwatch stopwatch = Stopwatch.createStarted();
+    System.out.println(inputFiles);
+    inputFiles = Arrays.asList(inputFiles.get(0).split(",").clone());
+    System.out.println(inputFiles);
     try (OutputStream output = new BufferedOutputStream(Files.newOutputStream(outputFile));
          Stream<AccessEvent> events = inputFormat.readFiles(inputFiles).events();
          TraceWriter writer = outputFormat.writer(output)) {
