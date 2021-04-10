@@ -92,7 +92,12 @@ public final class LAHillClimberWindowPolicy implements Policy {
 
     this.strategy = strategy;
     this.initialPercentMain = percentMain;
-    this.policyStats = new PolicyStats(getPolicyName());
+    this.policyStats = new PolicyStats("LAHillClimberWindow-%s-%s (%s %.0f%% -> %.0f%%)(k=%.2f,eps=%.2f)",
+            headWindow.type(),
+            headProtected.type(),
+            strategy.name().toLowerCase(US),
+            100 * (1.0 - initialPercentMain),
+            (100.0 * maxWindow) / maximumSize, k, eps);
     this.admittor = new LATinyLfu(settings.config(), policyStats);
     this.climber = strategy.create(settings.config());
     this.k = k;
@@ -326,7 +331,7 @@ public final class LAHillClimberWindowPolicy implements Policy {
 
   @Override
   public void finished() {
-    policyStats.setName(getPolicyName());
+//    policyStats.setName(getPolicyName());
     policyStats.setPercentAdaption(
             (maxWindow / (double) maximumSize) - (1.0 - initialPercentMain));
     printSegmentSizes();
