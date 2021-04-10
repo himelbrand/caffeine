@@ -40,6 +40,7 @@ import java.util.Set;
  *
  * @author himelbrand@gmail.com (Omri Himelbrand)
  */
+@Policy.PolicySpec(name = "sketch.WindowLA")
 public final class WindowLAPolicy implements Policy {
 
   private final Long2ObjectMap<Node> data;
@@ -170,11 +171,6 @@ public final class WindowLAPolicy implements Policy {
       headProbation.remove(evict.key());
       policyStats.recordEviction();
     }
-  }
-
-  @Override
-  public Set<Characteristic> characteristics() {
-    return ImmutableSet.of();
   }
 
   @Override

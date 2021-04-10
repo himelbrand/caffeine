@@ -53,6 +53,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
  *
  * @author ben.manes@gmail.com (Ben Manes)
  */
+@Policy.PolicySpec(name = "sampled.HyperbolicLA")
 public final class HyperbolicLA implements Policy {
   final Long2ObjectMap<Node> data;
   final PolicyStats policyStats;
@@ -85,11 +86,7 @@ public final class HyperbolicLA implements Policy {
       new HyperbolicLA(admission, config)
     ).collect(toSet());
   }
-
-  @Override
-  public Set<Characteristic> characteristics() {
-    return Sets.immutableEnumSet(WEIGHTED);
-  }
+  
 
   @Override
   public PolicyStats stats() {

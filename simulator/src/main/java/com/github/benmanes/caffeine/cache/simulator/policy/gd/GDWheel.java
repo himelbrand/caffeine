@@ -16,7 +16,7 @@ import java.util.*;
 
 import static com.github.benmanes.caffeine.cache.simulator.policy.Policy.Characteristic.WEIGHTED;
 
-
+@Policy.PolicySpec(name = "GD-Wheel", characteristics = WEIGHTED)
 public class GDWheel implements Policy {
     private final int NW;
     private final int NQ;
@@ -33,7 +33,7 @@ public class GDWheel implements Policy {
         this.NW = settings.numberOfWheels();
         this.NQ = settings.numberOfQueues();
         this.maximumSize = settings.maximumSize();
-        this.policyStats = new PolicyStats("GD-Wheel");
+        this.policyStats = new PolicyStats(admission.format("GD-Wheel"));
         this.CH = new int[NW];
         this.wheels = new CostWheel[NW];
         for(int i=0;i<NW;i++){
@@ -42,10 +42,6 @@ public class GDWheel implements Policy {
         this.currentSize = 0;
         this.admittor = admission.from(config, policyStats);
 
-    }
-    @Override
-    public Set<Characteristic> characteristics() {
-        return Sets.immutableEnumSet(WEIGHTED);
     }
 
     public static Set<Policy> policies(Config config) {
@@ -172,7 +168,7 @@ public class GDWheel implements Policy {
 
         public AccessEvent evict(int i){
             PriorityQueue<AccessEvent> queue = wheel.get(i);
-            return queue.poll();
+            return Objects.requireNonNull(queue.poll());
         }
 
         public void remove(int i,AccessEvent e){

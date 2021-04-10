@@ -126,6 +126,7 @@ public final class Registry {
     registerTwoQueue();
     registerAdaptive();
     registerGreedyDual();
+    registerGDWheel();
   }
 
   /** Registers the policy based on the annotated name. */
@@ -159,7 +160,7 @@ public final class Registry {
   }
 
   private void registerGDWheel() {
-    factories.put("gd-wheel", GDWheel::policies);
+    registerMany(GDWheel.class, GDWheel::policies);
   }
 
   private void registerLinked() {
@@ -175,8 +176,6 @@ public final class Registry {
     registerMany(LRBB.class, LRBB::policies);
     registerMany(S4LruPolicy.class, S4LruPolicy::policies);
     register(MultiQueuePolicy.class, MultiQueuePolicy::new);
-    registerMany(SegmentedLruPolicy.class, SegmentedLruPolicy::policies);
-    registerMany()
   }
 
   private void registerSampled() {
@@ -184,7 +183,7 @@ public final class Registry {
       registerMany(priority.label(), SampledPolicy.class,
           config -> SampledPolicy.policies(config, priority));
     });
-    factories.put("sampled.HyperbolicLA", HyperbolicLA::policies);
+    registerMany(HyperbolicLA.class, HyperbolicLA::policies);
   }
 
   private void registerTwoQueue() {
@@ -194,6 +193,7 @@ public final class Registry {
 
   private void registerSketch() {
     registerMany(WindowTinyLfuPolicy.class, WindowTinyLfuPolicy::policies);
+    registerMany(WindowLAPolicy.class, WindowLAPolicy::policies);
     registerMany(S4WindowTinyLfuPolicy.class, S4WindowTinyLfuPolicy::policies);
     registerMany(LruWindowTinyLfuPolicy.class, LruWindowTinyLfuPolicy::policies);
     registerMany(RandomWindowTinyLfuPolicy.class, RandomWindowTinyLfuPolicy::policies);
@@ -204,6 +204,7 @@ public final class Registry {
     registerMany(FeedbackWindowTinyLfuPolicy.class, FeedbackWindowTinyLfuPolicy::policies);
 
     registerMany(HillClimberWindowTinyLfuPolicy.class, HillClimberWindowTinyLfuPolicy::policies);
+    registerMany(LAHillClimberWindowPolicy.class, LAHillClimberWindowPolicy::policies);
 
     register(TinyCachePolicy.class, TinyCachePolicy::new);
     register(WindowTinyCachePolicy.class, WindowTinyCachePolicy::new);

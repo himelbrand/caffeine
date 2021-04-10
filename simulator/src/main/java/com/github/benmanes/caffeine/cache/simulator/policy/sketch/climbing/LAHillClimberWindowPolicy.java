@@ -49,6 +49,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @author himelbrand@gmail.com (Omri Himelbrand)
  */
 @SuppressWarnings("PMD.TooManyFields")
+@Policy.PolicySpec(name = "sketch.LAHillClimberWindow")
 public final class LAHillClimberWindowPolicy implements Policy {
 
   private final double initialPercentMain;
@@ -133,11 +134,6 @@ public final class LAHillClimberWindowPolicy implements Policy {
   @Override
   public PolicyStats stats() {
     return policyStats;
-  }
-
-  @Override
-  public Set<Characteristic> characteristics() {
-    return ImmutableSet.of();
   }
 
   @Override
