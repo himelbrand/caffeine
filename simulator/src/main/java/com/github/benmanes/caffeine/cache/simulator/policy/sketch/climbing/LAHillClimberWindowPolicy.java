@@ -53,7 +53,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class LAHillClimberWindowPolicy implements Policy {
 
   private final double initialPercentMain;
-  private final LAHillClimberType strategy;
   private final Long2ObjectMap<Node> data;
   private final PolicyStats policyStats;
   private final LAHillClimber climber;
@@ -89,8 +88,6 @@ public final class LAHillClimberWindowPolicy implements Policy {
     this.headProtected = new LRBBBlock(k, reset, eps, this.maxProtected, asLRU);
     this.headProbation = new LRBBBlock(k, reset, eps, maxMain - this.maxProtected, asLRU);
     this.headWindow = new LRBBBlock(k, reset, eps, this.maxWindow, windowAsLRU);
-
-    this.strategy = strategy;
     this.initialPercentMain = percentMain;
     this.policyStats = new PolicyStats("LAHillClimberWindow-%s-%s (%s %.0f%% -> %.0f%%)(k=%.2f,eps=%.2f)",
             headWindow.type(),
@@ -103,16 +100,6 @@ public final class LAHillClimberWindowPolicy implements Policy {
     this.k = k;
     this.eps = eps;
     printSegmentSizes();
-  }
-
-  private String getPolicyName() {
-    return String.format(
-        "LAHillClimberWindow-%s-%s (%s %.0f%% -> %.0f%%)(k=%.2f,eps=%.2f)",
-        headWindow.type(),
-        headProtected.type(),
-        strategy.name().toLowerCase(US),
-        100 * (1.0 - initialPercentMain),
-        (100.0 * maxWindow) / maximumSize, k, eps);
   }
 
   /**

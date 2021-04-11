@@ -76,7 +76,7 @@ public class GDWheel implements Policy {
                     wheels[0].add(CH[0],q);
                     break;
                 }else if (q!=null){
-                    data.remove((long) q.key());
+                    data.remove(q.key());
                     currentSize -= q.weight();
                     policyStats.recordEviction();
                 }
@@ -120,7 +120,7 @@ public class GDWheel implements Policy {
             int cr = ((int)p.missPenalty())%((int)Math.pow(NQ,idx));
             int q = (int)(Math.round(cr/Math.pow(NQ,idx-1))+CH[idx-1])%NQ;
             wheels[idx-1].add(q,p);
-            Node node = data.get((long)p.key());
+            Node node = data.get(p.key());
             node.updateLoc(idx-1,q);
         }
     }

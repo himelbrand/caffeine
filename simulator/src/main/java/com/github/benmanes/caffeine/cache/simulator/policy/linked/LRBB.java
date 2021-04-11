@@ -195,7 +195,7 @@ public final class LRBB implements Policy {
   private void addToList(AccessEvent candidate, Node inSentinel) {
     Node node = new Node(candidate, candidate.weight(), inSentinel);
 
-    data.put((long) candidate.key(), node);
+    data.put(candidate.key(), node);
     if (inSentinel.size > 0) {
       Node listNext = inSentinel.next;
       if (listNext.event.delta() * Math.pow((double) currOp - listNext.lastOp + 1, -k) > candidate
