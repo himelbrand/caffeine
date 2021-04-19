@@ -34,7 +34,7 @@ import com.typesafe.config.Config;
  *
  * @author himelbrand@gmail.com (Omri Himelbrand)
  */
-public final class LATinyLfu implements Admittor.PenaltiesAdmittor {
+public final class LATinyLfu implements Admittor {
 
   private final PolicyStats policyStats;
   private final Frequency sketch;

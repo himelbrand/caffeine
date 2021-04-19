@@ -28,22 +28,10 @@ import com.github.benmanes.caffeine.cache.simulator.policy.AccessEvent;
 public interface Admittor {
 
   /** Records the access to the entry. */
-  void record(AccessEvent event);
-
-  /** Records the access to the entry. */
   default void record(long key) {
     record(AccessEvent.forKey(key));
   }
 
-  /**
-   * Returns if the candidate should be added to the cache and the page replacement policy's chosen
-   * victim should be removed.
-   *
-   * @param candidate the event of the newly added entry
-   * @param victim the event of the entry the policy recommends removing
-   * @return if the candidate should be added and the victim removed due to eviction
-   */
-  boolean admit(AccessEvent candidate, AccessEvent victim);
 
   /**
    * Returns if the candidate should be added to the cache and the page replacement policy's chosen
