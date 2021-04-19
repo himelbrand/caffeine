@@ -21,7 +21,6 @@ import static java.util.Locale.US;
 import static java.util.stream.Collectors.toSet;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
-import com.github.benmanes.caffeine.cache.simulator.policy.gd.GDWheel;
 import com.github.benmanes.caffeine.cache.simulator.policy.linked.LRBB;
 import com.github.benmanes.caffeine.cache.simulator.policy.sampled.HyperbolicLA;
 import com.github.benmanes.caffeine.cache.simulator.policy.sketch.WindowLAPolicy;
@@ -127,7 +126,6 @@ public final class Registry {
     registerTwoQueue();
     registerAdaptive();
     registerGreedyDual();
-    registerGDWheel();
   }
 
   /** Registers the policy based on the annotated name. */
@@ -158,10 +156,6 @@ public final class Registry {
   private void registerOptimal() {
     register(ClairvoyantPolicy.class, ClairvoyantPolicy::new);
     register(UnboundedPolicy.class, config -> new UnboundedPolicy(config, characteristics));
-  }
-
-  private void registerGDWheel() {
-    registerMany(GDWheel.class, GDWheel::policies);
   }
 
   private void registerLinked() {
