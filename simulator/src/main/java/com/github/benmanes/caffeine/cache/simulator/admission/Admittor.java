@@ -28,7 +28,22 @@ import com.github.benmanes.caffeine.cache.simulator.policy.AccessEvent;
 public interface Admittor {
 
   /** Records the access to the entry. */
-  void record(long key);
+  void record(AccessEvent event);
+
+  /** Records the access to the entry. */
+  default void record(long key) {
+    record(AccessEvent.forKey(key));
+  }
+
+  /**
+   * Returns if the candidate should be added to the cache and the page replacement policy's chosen
+   * victim should be removed.
+   *
+   * @param candidate the event of the newly added entry
+   * @param victim the event of the entry the policy recommends removing
+   * @return if the candidate should be added and the victim removed due to eviction
+   */
+  boolean admit(AccessEvent candidate, AccessEvent victim);
 
   /**
    * Returns if the candidate should be added to the cache and the page replacement policy's chosen
@@ -38,7 +53,9 @@ public interface Admittor {
    * @param victimKey the key to the entry the policy recommends removing
    * @return if the candidate should be added and the victim removed due to eviction
    */
-  boolean admit(long candidateKey, long victimKey);
+  default boolean admit(long candidateKey, long victimKey) {
+    return admit(AccessEvent.forKey(candidateKey), AccessEvent.forKey(victimKey));
+  }
 
   /** Records the access to the entry. (overloading to use events)*/
   default void record(AccessEvent event) { record(event.key()); }
@@ -58,30 +75,36 @@ public interface Admittor {
     return AlwaysAdmit.INSTANCE;
   }
 
-  interface PenaltiesAdmittor extends Admittor {
+  /** An admission policy that does not exploit external event metadata. */
+  interface KeyOnlyAdmittor extends Admittor {
 
     @Override
-    void record(AccessEvent event);
+    void record(long key);
 
     @Override
-    boolean admit(AccessEvent candidate, AccessEvent victim);
+    boolean admit(long candidateKey, long victimKey);
 
     @Override
-    default boolean admit(long candidateKey, long victimKey){return false;}
+    default void record(AccessEvent event) {
+      record(event.key());
+    }
 
     @Override
-    default void record(long key){}
+    default boolean admit(AccessEvent candidate, AccessEvent victim) {
+      return admit(candidate.key(), victim.key());
+    }
   }
 }
 
 enum AlwaysAdmit implements Admittor {
   INSTANCE;
 
-  @Override
-  public void record(long key) {}
-
-  @Override
-  public boolean admit(long candidateKey, long victimKey) {
+  @Override public void record(long key) {}
+  @Override public void record(AccessEvent event) {}
+  @Override public boolean admit(long candidateKey, long victimKey) {
+    return true;
+  }
+  @Override public boolean admit(AccessEvent candidate, AccessEvent victim) {
     return true;
   }
 }
