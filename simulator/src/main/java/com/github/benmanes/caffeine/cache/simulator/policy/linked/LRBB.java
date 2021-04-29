@@ -24,10 +24,15 @@ import com.github.benmanes.caffeine.cache.simulator.policy.AccessEvent;
 import com.github.benmanes.caffeine.cache.simulator.policy.Policy;
 import com.github.benmanes.caffeine.cache.simulator.policy.PolicyStats;
 import com.google.common.base.MoreObjects;
+import com.google.common.base.Splitter;
 import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+
+import java.io.FileNotFoundException;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -55,6 +60,8 @@ public final class LRBB implements Policy {
   private int currOp;
   private long lastReset;
   private int currentSize;
+  private PrintWriter writer;
+  private long reqCountAll;
 
   public LRBB(Admission admission, Config config, double k, double reset, double eps) {
     BasicSettings settings = new BasicSettings(config);
@@ -67,11 +74,24 @@ public final class LRBB implements Policy {
     this.data = new Long2ObjectOpenHashMap<>();
     this.lists = new ArrayList<>();
     this.resetCount = (int) (reset * maximumSize);
-    this.lists.add(new Node());
+//    this.lists.add(new Node());
     this.maxLists = (int) Math.round(2.0 / eps);
     this.lastReset = System.nanoTime();
     this.reqCount = 0;
     this.currentSize = 0;
+    this.reqCountAll = 0;
+    BasicSettings.ReportSettings settings33 = settings.report();
+    List<String> fname_split = Splitter.on('/').splitToList(settings33.output());
+    String fname = fname_split.get(fname_split.size()-1);
+    fname = fname.substring(0,fname.length()-4);
+
+    try {
+      this.writer = new PrintWriter(String.format("/home/himelbrand/Documents/github/simulatools/lrbb_out/%s.txt",fname), "UTF-8");
+    } catch (FileNotFoundException e) {
+      e.printStackTrace();
+    } catch (UnsupportedEncodingException e) {
+      e.printStackTrace();
+    }
   }
 
   private String getPolicyName() {
@@ -102,18 +122,33 @@ public final class LRBB implements Policy {
   }
 
   @Override
+  public void finished() {
+    writer.close();
+  }
+
+  @Override
   public void record(AccessEvent event) {
     final int weight = event.weight();
     final long key = event.key();
     Node old = data.get(key);
 
     admittor.record(event);
+    if (reqCountAll % 1000 == 0){
+      writer.print(String.format("%d %d",reqCountAll,lists.size()));
+      for(Node l : lists){
+        writer.print(String.format(" %d-%.02f",l.size,l.avgBenefit()));
+      }
+      writer.println();
+      writer.flush();
+    }
     reqCount++;
+    reqCountAll++;
     if (reqCount > resetCount) {
       reqCount = 0;
       lastReset = System.nanoTime();
       currOp >>= 1;
     }
+
     if (old == null) {
       policyStats.recordWeightedMiss(weight);
       if (weight > maximumSize) {
@@ -124,6 +159,7 @@ public final class LRBB implements Policy {
       evict(event);
     } else {
       old.event.updateHitPenalty(event.hitPenalty());
+      policyStats.recordApproxAccuracy(event.missPenalty(), old.event().missPenalty());
       policyStats.recordWeightedHit(weight);
       onAccess(old);
     }
@@ -134,6 +170,7 @@ public final class LRBB implements Policy {
     double tmpD;
     double minRange;
     double maxRange;
+    double similarity;
     int index = -1;
     int insertAt = 0;
     Node sentinel;
@@ -145,7 +182,12 @@ public final class LRBB implements Policy {
       }
       minRange = Math.pow(sentinel.avgBenefit(), 1 - eps);
       maxRange = Math.pow(sentinel.avgBenefit(), 1 + eps);
-      if (candidate.delta() >= minRange && candidate.delta() <= maxRange) {
+      similarity = Math.min(sentinel.avgBenefit(), candidate.delta())/Math.max(sentinel.avgBenefit(), candidate.delta());
+      similarity = (similarity > 0 ? 1 : -1) * Math.pow(similarity,2);
+//      if (candidate.delta() >= minRange && candidate.delta() <= maxRange) {
+//        index = i;
+//      }
+      if (similarity >= eps) {
         index = i;
       }
       tmpD = Math.abs(candidate.delta() - sentinel.avgBenefit());
@@ -223,7 +265,8 @@ public final class LRBB implements Policy {
       if (currVictim.lastTouch < lastReset) {
         currVictim.resetOp();
       }
-      rank = Math.pow(currVictim.event.delta(), Math.pow((double) currOp - currVictim.lastOp, -k));
+
+      rank = Math.pow(Math.abs(currVictim.event.delta()), Math.pow((double) currOp - currVictim.lastOp, -k)) * (currVictim.event.delta() > 0 ? 1 : -1);
 //      if (rank == 0){
 //        System.out.println(Math.pow((double) currOp - currVictim.lastOp, -k));
 //        System.out.println(currVictim.event.delta());

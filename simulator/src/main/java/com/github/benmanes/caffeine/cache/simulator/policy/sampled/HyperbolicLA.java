@@ -110,6 +110,7 @@ public final class HyperbolicLA implements Policy {
       policyStats.recordOperation();
       policyStats.recordHit();
       node.event.updateHitPenalty(event.hitPenalty());
+      policyStats.recordApproxAccuracy(event.missPenalty(), node.event.missPenalty());
 //      AccessEvent old_event = node.event;
 //      node.updateEvent(AccessEvent.forKeyAndPenalties(event.key(), event.hitPenalty(), old_event.missPenalty()));
       node.accessTime = now;

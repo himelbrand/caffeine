@@ -195,8 +195,8 @@ public final class LRBBBlock {
       if (currVictim.lastTouch < lastReset) {
         currVictim.resetOp();
       }
-      rank = Math.pow(currVictim.event.delta(), Math.pow((double) currOp - currVictim.lastOp, -k));
-
+//      rank = Math.pow(currVictim.event.delta(), Math.pow((double) currOp - currVictim.lastOp, -k));
+      rank = Math.pow(Math.abs(currVictim.event.delta()), Math.pow((double) currOp - currVictim.lastOp, -k)) * (currVictim.event.delta() > 0 ? 1 : -1);
       if (rank < minRank || victim == null || (rank == minRank
           && (double) currVictim.lastOp / currOp < (double) victim.lastOp / currOp)) {
         minRank = rank;

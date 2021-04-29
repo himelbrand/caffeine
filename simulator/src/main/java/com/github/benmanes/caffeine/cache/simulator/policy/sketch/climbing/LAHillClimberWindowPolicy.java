@@ -76,17 +76,17 @@ public final class LAHillClimberWindowPolicy implements Policy {
 
   public LAHillClimberWindowPolicy(
       LAHillClimberType strategy, double percentMain, LAHillClimberWindowSettings settings,
-      double k, double reset, double eps) {
+      double k, double reset, double eps, boolean mainLRU) {
 
     int maxMain = (int) (settings.maximumSize() * percentMain);
     this.maxProtected = (int) (maxMain * settings.percentMainProtected());
     this.maxWindow = settings.maximumSize() - maxMain;
     this.data = new Long2ObjectOpenHashMap<>();
     this.maximumSize = settings.maximumSize();
-    boolean asLRU = settings.asLRU();
+//    boolean asLRU = settings.asLRU();
     boolean windowAsLRU = settings.windowAsLRU();
-    this.headProtected = new LRBBBlock(k, reset, eps, this.maxProtected, asLRU);
-    this.headProbation = new LRBBBlock(k, reset, eps, maxMain - this.maxProtected, asLRU);
+    this.headProtected = new LRBBBlock(k, reset, eps, this.maxProtected, mainLRU);
+    this.headProbation = new LRBBBlock(k, reset, eps, maxMain - this.maxProtected, mainLRU);
     this.headWindow = new LRBBBlock(k, reset, eps, this.maxWindow, windowAsLRU);
     this.initialPercentMain = percentMain;
     this.policyStats = new PolicyStats("LAHillClimberWindow-%s-%s (%s %.0f%% -> %.0f%%)(k=%.2f,eps=%.2f)",
@@ -108,13 +108,15 @@ public final class LAHillClimberWindowPolicy implements Policy {
   public static Set<Policy> policies(Config config) {
     LAHillClimberWindowSettings settings = new LAHillClimberWindowSettings(config);
     Set<Policy> policies = new HashSet<>();
+    boolean[] booleans = {true, false};
     for (LAHillClimberType climber : settings.strategy()) {
       for (double percentMain : settings.percentMain()) {
         for (double k : settings.kValues()) {
           for (double r : settings.reset()) {
             for (double e : settings.epsilon()) {
+
               policies
-                  .add(new LAHillClimberWindowPolicy(climber, percentMain, settings, k, r, e));
+                  .add(new LAHillClimberWindowPolicy(climber, percentMain, settings, k, r, e, false));
             }
           }
         }
@@ -142,6 +144,7 @@ public final class LAHillClimberWindowPolicy implements Policy {
       policyStats.recordMiss();
     } else {
       node.event().updateHitPenalty(event.hitPenalty());
+      policyStats.recordApproxAccuracy(event.missPenalty(), node.event().missPenalty());
 //      node.updateEvent(AccessEvent.forKeyAndPenalties(event.key(), event.hitPenalty(), old_event.missPenalty()));
       if (headWindow.isHit(key)) {
         onWindowHit(node);

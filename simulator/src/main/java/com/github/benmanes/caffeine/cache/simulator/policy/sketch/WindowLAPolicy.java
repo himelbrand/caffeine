@@ -181,6 +181,7 @@ public final class WindowLAPolicy implements Policy {
       policyStats.recordMiss();
     } else {
       node.event().updateHitPenalty(event.hitPenalty());
+      policyStats.recordApproxAccuracy(event.missPenalty(), node.event().missPenalty());
 //      node.updateEvent(AccessEvent.forKeyAndPenalties(event.key(), event.hitPenalty(), old_event.missPenalty()));
       if (headWindow.isHit(key)) {
         onWindowHit(node);

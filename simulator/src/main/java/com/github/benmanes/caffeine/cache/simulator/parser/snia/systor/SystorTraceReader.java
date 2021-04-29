@@ -33,7 +33,7 @@ import com.google.common.math.IntMath;
  * @author himelbrand@gmail.com (Omri Himelbrand)
  */
 public final class SystorTraceReader extends TextTraceReader {
-  static final int BLOCK_SIZE = 512;
+  static final int BLOCK_SIZE = 4096;
 
   public SystorTraceReader(String filePath) {
     super(filePath);
@@ -51,13 +51,12 @@ public final class SystorTraceReader extends TextTraceReader {
         .filter(array -> array.length == 6)
         .filter(array -> !array[1].isEmpty())
         .filter(array -> array[2].equals("R"))
+        .filter(array -> Double.parseDouble(array[1]) > 0)
         .flatMap(array -> {
-          int size = Integer.parseInt(array[5]);
           long offset = Long.parseLong(array[4]);
-          double responseTime = 1000 * Double.parseDouble(array[1]);
-          int sequence = IntMath.divide(size, BLOCK_SIZE, RoundingMode.UP);
-          return LongStream.range(offset, offset + sequence)
-              .mapToObj(key -> AccessEvent.forKeyAndPenalties(key, 0, responseTime));
+          double uni = 1.0/IntMath.divide(Integer.parseInt(array[5]), BLOCK_SIZE, RoundingMode.UP);
+          return LongStream.range(offset, offset + IntMath.divide(Integer.parseInt(array[5]), BLOCK_SIZE, RoundingMode.UP))
+              .mapToObj(key -> AccessEvent.forKeyAndPenalties(key, 0, 1000000 * uni * Double.parseDouble(array[1])));
         });
   }
 }

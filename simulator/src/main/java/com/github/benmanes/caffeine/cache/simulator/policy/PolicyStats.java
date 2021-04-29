@@ -22,7 +22,9 @@ import static com.github.benmanes.caffeine.cache.simulator.policy.PolicyStats.Me
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.builder.ToStringStyle.MULTI_LINE_STYLE;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -64,13 +66,16 @@ public class PolicyStats {
   private long operationCount;
   private double percentAdaption;
   private final Map<Double, Long> timesCounts;
+  private final List<Double> accuracy;
+  private final List<Double> mape;
 
   @SuppressWarnings("AnnotateFormatMethod")
   public PolicyStats(String format, Object... args) {
     this.stopwatch = Stopwatch.createUnstarted();
     this.name = String.format(format, args);
     this.metrics = new LinkedHashMap<>();
-
+    this.mape = new ArrayList<>();
+    this.accuracy = new ArrayList<>();
     this.timesCounts = new Double2LongOpenHashMap();
     addMetric(Metric.of("Policy", (Supplier<String>) this::name, OBJECT, true));
     addMetric(Metric.of("Hit Rate", (DoubleSupplier) this::hitRate, PERCENT, true));
@@ -96,6 +101,11 @@ public class PolicyStats {
     addMetric("Average Miss Penalty", this::averageMissPenalty);
     addMetric("Average Penalty", this::averagePenalty);
     addMetric("P99",this::computeP99);
+    addMetric(Metric.of("MAPE", (DoubleSupplier) this::computeMAPE, PERCENT, false));
+    addMetric("Approx. STD",this::computeSDAccuracy);
+    addMetric("Approx. Mean",this::computeMeanAccuracy);
+    addMetric("MSE-STD",this::computeSQRSDAccuracy);
+    addMetric("MSE",this::computeSQRMeanAccuracy);
     addMetric("Steps", this::operationCount);
     addMetric("Time", this::stopwatch);
   }
@@ -202,6 +212,11 @@ public class PolicyStats {
         timesCounts.merge(penalty,1L,Long::sum);
   }
 
+  public void recordApproxAccuracy(double realMissPenalty, double approximatedMissPenalty){
+    accuracy.add(realMissPenalty - approximatedMissPenalty);
+    mape.add(Math.abs((realMissPenalty - approximatedMissPenalty)/realMissPenalty));
+  }
+
   public double missPenalty() {
     return missPenalty;
   }
@@ -265,6 +280,54 @@ public class PolicyStats {
               }
       );
       return p99.get();
+  }
+
+  public double computeMeanAccuracy() {
+    double sum = 0;
+    for (double curr : accuracy){
+      sum += curr;
+    }
+    return sum / (double) accuracy.size();
+  }
+
+  public double computeSDAccuracy() {
+    double mean = computeMeanAccuracy();
+    double temp = 0;
+
+    for (double curr : accuracy){
+      double squareDiffToMean = Math.pow(curr - mean, 2);
+      temp += squareDiffToMean;
+    }
+    double meanOfDiffs = temp / (double) accuracy.size();
+    return Math.sqrt(meanOfDiffs);
+  }
+
+  public double computeSQRMeanAccuracy() {
+    double sum = 0;
+    for (double curr : accuracy){
+      sum += Math.abs(curr);
+    }
+    return sum / (double) accuracy.size();
+  }
+
+  public double computeSQRSDAccuracy() {
+    double mean = computeSQRMeanAccuracy();
+    double temp = 0;
+
+    for (double curr : accuracy){
+      double squareDiffToMean = Math.pow(curr - mean, 2);
+      temp += squareDiffToMean;
+    }
+    double meanOfDiffs = temp / (double) accuracy.size();
+    return Math.sqrt(meanOfDiffs);
+  }
+
+  public double computeMAPE() {
+    double sum = 0;
+    for (double curr : mape){
+      sum += curr;
+    }
+    return sum / (double) mape.size();
   }
 
   public void setPercentAdaption(double percentAdaption) {
