@@ -142,11 +142,13 @@ public final class CampPolicy implements Policy {
     private static final class Sentinel extends Node implements Comparable<Sentinel>{
         int priority;
         long lastRequest;
+        double priorityTieBreaker;
 
         public Sentinel(int cost) {
             super(Long.MIN_VALUE);
             this.cost = cost;
             prev = next = this;
+            this.priorityTieBreaker = Math.random();
         }
 
         /** Returns if the queue is empty. */
@@ -173,17 +175,7 @@ public final class CampPolicy implements Policy {
 
         @Override
         public int compareTo(Sentinel s) {
-            if (priority != s.priority)
-                return priority - s.priority;
-            return (int) Math.signum(s.lastRequest - lastRequest);
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            Sentinel sentinel = (Sentinel) o;
-            return cost == sentinel.cost && priority == sentinel.priority;
+            return priority == s.priority ? (int)Math.signum(priorityTieBreaker - s.priorityTieBreaker) : priority - s.priority;
         }
 
         @Override

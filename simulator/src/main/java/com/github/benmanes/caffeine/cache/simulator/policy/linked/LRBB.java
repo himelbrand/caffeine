@@ -60,7 +60,6 @@ public final class LRBB implements Policy {
   private int currOp;
   private long lastReset;
   private int currentSize;
-  private PrintWriter writer;
   private long reqCountAll;
 
   public LRBB(Admission admission, Config config, double k, double reset, double eps) {
@@ -74,24 +73,11 @@ public final class LRBB implements Policy {
     this.data = new Long2ObjectOpenHashMap<>();
     this.lists = new ArrayList<>();
     this.resetCount = (int) (reset * maximumSize);
-//    this.lists.add(new Node());
     this.maxLists = (int) Math.round(2.0 / eps);
     this.lastReset = System.nanoTime();
     this.reqCount = 0;
     this.currentSize = 0;
     this.reqCountAll = 0;
-    BasicSettings.ReportSettings settings33 = settings.report();
-    List<String> fname_split = Splitter.on('/').splitToList(settings33.output());
-    String fname = fname_split.get(fname_split.size()-1);
-    fname = fname.substring(0,fname.length()-4);
-
-    try {
-      this.writer = new PrintWriter(String.format("/home/himelbrand/Documents/github/simulatools/lrbb_out/%s.txt",fname), "UTF-8");
-    } catch (FileNotFoundException e) {
-      e.printStackTrace();
-    } catch (UnsupportedEncodingException e) {
-      e.printStackTrace();
-    }
   }
 
   private String getPolicyName() {
@@ -121,10 +107,7 @@ public final class LRBB implements Policy {
     return policyStats;
   }
 
-  @Override
-  public void finished() {
-    writer.close();
-  }
+
 
   @Override
   public void record(AccessEvent event) {
@@ -133,14 +116,6 @@ public final class LRBB implements Policy {
     Node old = data.get(key);
 
     admittor.record(event);
-    if (reqCountAll % 1000 == 0){
-      writer.print(String.format("%d %d",reqCountAll,lists.size()));
-      for(Node l : lists){
-        writer.print(String.format(" %d-%.02f",l.size,l.avgBenefit()));
-      }
-      writer.println();
-      writer.flush();
-    }
     reqCount++;
     reqCountAll++;
     if (reqCount > resetCount) {
@@ -170,7 +145,6 @@ public final class LRBB implements Policy {
     double tmpD;
     double minRange;
     double maxRange;
-    double similarity;
     int index = -1;
     int insertAt = 0;
     Node sentinel;
@@ -182,12 +156,7 @@ public final class LRBB implements Policy {
       }
       minRange = Math.pow(sentinel.avgBenefit(), 1 - eps);
       maxRange = Math.pow(sentinel.avgBenefit(), 1 + eps);
-      similarity = Math.min(sentinel.avgBenefit(), candidate.delta())/Math.max(sentinel.avgBenefit(), candidate.delta());
-      similarity = (similarity > 0 ? 1 : -1) * Math.pow(similarity,2);
-//      if (candidate.delta() >= minRange && candidate.delta() <= maxRange) {
-//        index = i;
-//      }
-      if (similarity >= eps) {
+      if (candidate.delta() >= minRange && candidate.delta() <= maxRange) {
         index = i;
       }
       tmpD = Math.abs(candidate.delta() - sentinel.avgBenefit());
@@ -267,12 +236,6 @@ public final class LRBB implements Policy {
       }
 
       rank = Math.pow(Math.abs(currVictim.event.delta()), Math.pow((double) currOp - currVictim.lastOp, -k)) * (currVictim.event.delta() > 0 ? 1 : -1);
-//      if (rank == 0){
-//        System.out.println(Math.pow((double) currOp - currVictim.lastOp, -k));
-//        System.out.println(currVictim.event.delta());
-//        System.out.println(currVictim.event.missPenalty());
-//        System.out.println(currVictim.event.hitPenalty());
-//      }
       if (rank < minRank || victim == null || (rank == minRank
           && (double) currVictim.lastOp / currOp < (double) victim.lastOp / currOp)) {
         minRank = rank;
