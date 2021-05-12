@@ -21,10 +21,12 @@ import static java.util.Locale.US;
 import static java.util.stream.Collectors.toSet;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
-import com.github.benmanes.caffeine.cache.simulator.policy.linked.LRBB;
+import com.github.benmanes.caffeine.cache.simulator.policy.linked.*;
 import com.github.benmanes.caffeine.cache.simulator.policy.opt.ClairvoyantLAPolicy;
 import com.github.benmanes.caffeine.cache.simulator.policy.sampled.HyperbolicLA;
+import com.github.benmanes.caffeine.cache.simulator.policy.sketch.WindowCAPolicy;
 import com.github.benmanes.caffeine.cache.simulator.policy.sketch.WindowLAPolicy;
+import com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.AdaptiveCAPolicy;
 import com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.LAHillClimberWindowPolicy;
 import java.util.HashMap;
 import java.util.Map;
@@ -49,11 +51,6 @@ import com.github.benmanes.caffeine.cache.simulator.policy.irr.FrdPolicy;
 import com.github.benmanes.caffeine.cache.simulator.policy.irr.HillClimberFrdPolicy;
 import com.github.benmanes.caffeine.cache.simulator.policy.irr.IndicatorFrdPolicy;
 import com.github.benmanes.caffeine.cache.simulator.policy.irr.LirsPolicy;
-import com.github.benmanes.caffeine.cache.simulator.policy.linked.FrequentlyUsedPolicy;
-import com.github.benmanes.caffeine.cache.simulator.policy.linked.LinkedPolicy;
-import com.github.benmanes.caffeine.cache.simulator.policy.linked.MultiQueuePolicy;
-import com.github.benmanes.caffeine.cache.simulator.policy.linked.S4LruPolicy;
-import com.github.benmanes.caffeine.cache.simulator.policy.linked.SegmentedLruPolicy;
 import com.github.benmanes.caffeine.cache.simulator.policy.opt.ClairvoyantPolicy;
 import com.github.benmanes.caffeine.cache.simulator.policy.opt.UnboundedPolicy;
 import com.github.benmanes.caffeine.cache.simulator.policy.product.Cache2kPolicy;
@@ -172,6 +169,7 @@ public final class Registry {
     });
     registerMany(SegmentedLruPolicy.class, SegmentedLruPolicy::policies);
     registerMany(LRBB.class, LRBB::policies);
+    registerMany(LrbbPolicy.class, LrbbPolicy::policies);
     registerMany(S4LruPolicy.class, S4LruPolicy::policies);
     register(MultiQueuePolicy.class, MultiQueuePolicy::new);
   }
@@ -192,6 +190,7 @@ public final class Registry {
   private void registerSketch() {
     registerMany(WindowTinyLfuPolicy.class, WindowTinyLfuPolicy::policies);
     registerMany(WindowLAPolicy.class, WindowLAPolicy::policies);
+    registerMany(WindowCAPolicy.class, WindowCAPolicy::policies);
     registerMany(S4WindowTinyLfuPolicy.class, S4WindowTinyLfuPolicy::policies);
     registerMany(LruWindowTinyLfuPolicy.class, LruWindowTinyLfuPolicy::policies);
     registerMany(RandomWindowTinyLfuPolicy.class, RandomWindowTinyLfuPolicy::policies);
@@ -203,7 +202,7 @@ public final class Registry {
 
     registerMany(HillClimberWindowTinyLfuPolicy.class, HillClimberWindowTinyLfuPolicy::policies);
     registerMany(LAHillClimberWindowPolicy.class, LAHillClimberWindowPolicy::policies);
-
+    registerMany(AdaptiveCAPolicy.class, AdaptiveCAPolicy::policies);
     register(TinyCachePolicy.class, TinyCachePolicy::new);
     register(WindowTinyCachePolicy.class, WindowTinyCachePolicy::new);
     register(TinyCacheWithGhostCachePolicy.class, TinyCacheWithGhostCachePolicy::new);

@@ -15,15 +15,6 @@
  */
 package com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing;
 
-import static com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.LAHillClimber.Adaptation.Type.DECREASE_WINDOW;
-import static com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.LAHillClimber.Adaptation.Type.INCREASE_WINDOW;
-import static com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.LAHillClimber.QueueType.PROBATION;
-import static com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.LAHillClimber.QueueType.PROTECTED;
-import static com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.LAHillClimber.QueueType.WINDOW;
-import static com.google.common.base.Preconditions.checkState;
-import static java.util.Locale.US;
-import static java.util.stream.Collectors.toSet;
-
 import com.github.benmanes.caffeine.cache.simulator.BasicSettings;
 import com.github.benmanes.caffeine.cache.simulator.admission.Admittor;
 import com.github.benmanes.caffeine.cache.simulator.admission.LATinyLfu;
@@ -31,16 +22,23 @@ import com.github.benmanes.caffeine.cache.simulator.policy.AccessEvent;
 import com.github.benmanes.caffeine.cache.simulator.policy.Policy;
 import com.github.benmanes.caffeine.cache.simulator.policy.PolicyStats;
 import com.github.benmanes.caffeine.cache.simulator.policy.linked.LRBBBlock;
-import com.github.benmanes.caffeine.cache.simulator.policy.linked.LRBBBlock.Node;
+import com.github.benmanes.caffeine.cache.simulator.policy.linked.LrbbBlock.Node;
+import com.github.benmanes.caffeine.cache.simulator.policy.linked.LrbbBlock;
 import com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.LAHillClimber.QueueType;
-import com.google.common.collect.ImmutableSet;
 import com.typesafe.config.Config;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import org.apache.commons.lang3.ArrayUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
+
+import java.util.*;
+
+import static com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.LAHillClimber.Adaptation.Type.DECREASE_WINDOW;
+import static com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.LAHillClimber.Adaptation.Type.INCREASE_WINDOW;
+import static com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.LAHillClimber.QueueType.*;
+import static com.google.common.base.Preconditions.checkState;
+import static java.util.Locale.US;
+import static java.util.stream.Collectors.toSet;
 
 /**
  * The WindowLA algorithm where the size of the admission window is adjusted using the a latency
@@ -49,8 +47,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * @author himelbrand@gmail.com (Omri Himelbrand)
  */
 @SuppressWarnings("PMD.TooManyFields")
-@Policy.PolicySpec(name = "sketch.LAHillClimberWindow")
-public final class LAHillClimberWindowPolicy implements Policy {
+@Policy.PolicySpec(name = "sketch.ACA")
+public final class AdaptiveCAPolicy implements Policy {
 
   private final double initialPercentMain;
   private final Long2ObjectMap<Node> data;
@@ -59,9 +57,9 @@ public final class LAHillClimberWindowPolicy implements Policy {
   private final Admittor admittor;
   private final int maximumSize;
 
-  private final LRBBBlock headProbation;
-  private final LRBBBlock headProtected;
-  private final LRBBBlock headWindow;
+  private final LrbbBlock headProbation;
+  private final LrbbBlock headProtected;
+  private final LrbbBlock headWindow;
 
   private int maxWindow;
   private int maxProtected;
@@ -72,33 +70,34 @@ public final class LAHillClimberWindowPolicy implements Policy {
   static final boolean debug = false;
   static final boolean trace = false;
   double k;
-  double eps;
 
-  public LAHillClimberWindowPolicy(
-      LAHillClimberType strategy, double percentMain, LAHillClimberWindowSettings settings,
-      double k, double reset, double eps, boolean mainLRU) {
+  private double normalizationBias;
+  private double normalizationFactor;
+
+  public AdaptiveCAPolicy(
+      LAHillClimberType strategy, double percentMain, AdaptiveCASettings settings,
+      double k, int maxLists) {
 
     int maxMain = (int) (settings.maximumSize() * percentMain);
     this.maxProtected = (int) (maxMain * settings.percentMainProtected());
     this.maxWindow = settings.maximumSize() - maxMain;
     this.data = new Long2ObjectOpenHashMap<>();
     this.maximumSize = settings.maximumSize();
-//    boolean asLRU = settings.asLRU();
-    boolean windowAsLRU = settings.windowAsLRU();
-    this.headProtected = new LRBBBlock(k, reset, eps, this.maxProtected, mainLRU);
-    this.headProbation = new LRBBBlock(k, reset, eps, maxMain - this.maxProtected, mainLRU);
-    this.headWindow = new LRBBBlock(k, reset, eps, this.maxWindow, windowAsLRU);
+    this.headProtected = new LrbbBlock(k, maxLists, this.maxProtected);
+    this.headProbation = new LrbbBlock(k, maxLists, maxMain - this.maxProtected);
+    this.headWindow = new LrbbBlock(k, maxLists, this.maxWindow);
     this.initialPercentMain = percentMain;
-    this.policyStats = new PolicyStats("LAHillClimberWindow-%s-%s (%s %.0f%% -> %.0f%%)(k=%.2f,eps=%.2f)",
+    this.policyStats = new PolicyStats("LAHillClimberWindow-%s-%s (%s %.0f%% -> %.0f%%)(k=%.2f,maxLists=%d)",
             headWindow.type(),
             headProtected.type(),
             strategy.name().toLowerCase(US),
             100 * (1.0 - initialPercentMain),
-            (100.0 * maxWindow) / maximumSize, k, eps);
+            (100.0 * maxWindow) / maximumSize, k, maxLists);
     this.admittor = new LATinyLfu(settings.config(), policyStats);
     this.climber = strategy.create(settings.config());
     this.k = k;
-    this.eps = eps;
+    this.normalizationBias = 0;
+    this.normalizationFactor = 1;
     printSegmentSizes();
   }
 
@@ -106,18 +105,14 @@ public final class LAHillClimberWindowPolicy implements Policy {
    * Returns all variations of this policy based on the configuration parameters.
    */
   public static Set<Policy> policies(Config config) {
-    LAHillClimberWindowSettings settings = new LAHillClimberWindowSettings(config);
+    AdaptiveCASettings settings = new AdaptiveCASettings(config);
     Set<Policy> policies = new HashSet<>();
-//    boolean[] booleans = {true, false};
     for (LAHillClimberType climber : settings.strategy()) {
       for (double percentMain : settings.percentMain()) {
         for (double k : settings.kValues()) {
-          for (double r : settings.reset()) {
-            for (double e : settings.epsilon()) {
-
+          for (int ml : settings.lrbb().maxLists()) {
               policies
-                  .add(new LAHillClimberWindowPolicy(climber, percentMain, settings, k, r, e, false));
-            }
+                  .add(new AdaptiveCAPolicy(climber, percentMain, settings, k, ml));
           }
         }
       }
@@ -140,7 +135,12 @@ public final class LAHillClimberWindowPolicy implements Policy {
 
     QueueType queue = null;
     if (node == null) {
+      normalizationBias = normalizationBias > 0 ? Math.min(normalizationBias,Math.max(0,event.delta())) : Math.max(0,event.delta());
+      normalizationFactor = normalizationFactor*1.5 < Math.max(0,event.delta()) ? Math.max(0,event.delta())*1.5: normalizationFactor;
+      updateNormalization();
       onMiss(event);
+      normalizationFactor = Math.min(normalizationFactor,1.5*Math.max(headWindow.getNormalizationFactor(),Math.max(headProtected.getNormalizationFactor(),headProbation.getNormalizationFactor())));
+      updateNormalization();
       policyStats.recordMiss();
     } else {
       node.event().updateHitPenalty(event.hitPenalty());
@@ -163,6 +163,12 @@ public final class LAHillClimberWindowPolicy implements Policy {
       }
     }
     climb(event, queue, isFull);
+  }
+
+  private void updateNormalization() {
+    headProtected.setNormalization(normalizationBias,normalizationFactor);
+    headProbation.setNormalization(normalizationBias,normalizationFactor);
+    headWindow.setNormalization(normalizationBias,normalizationFactor);
   }
 
   /**
@@ -351,9 +357,9 @@ public final class LAHillClimberWindowPolicy implements Policy {
     checkState(data.size() <= maximumSize, "Maximum: %s > %s", data.size(), maximumSize);
   }
 
-  public static final class LAHillClimberWindowSettings extends BasicSettings {
+  public static final class AdaptiveCASettings extends BasicSettings {
 
-    public LAHillClimberWindowSettings(Config config) {
+    public AdaptiveCASettings(Config config) {
       super(config);
     }
 

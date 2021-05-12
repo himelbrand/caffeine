@@ -60,7 +60,7 @@ public final class LRBB implements Policy {
   private int currOp;
   private long lastReset;
   private int currentSize;
-  private long reqCountAll;
+//  private long reqCountAll;
 
   public LRBB(Admission admission, Config config, double k, double reset, double eps) {
     BasicSettings settings = new BasicSettings(config);
@@ -77,7 +77,7 @@ public final class LRBB implements Policy {
     this.lastReset = System.nanoTime();
     this.reqCount = 0;
     this.currentSize = 0;
-    this.reqCountAll = 0;
+//    this.reqCountAll = 0;
   }
 
   private String getPolicyName() {
@@ -117,7 +117,7 @@ public final class LRBB implements Policy {
 
     admittor.record(event);
     reqCount++;
-    reqCountAll++;
+//    reqCountAll++;
     if (reqCount > resetCount) {
       reqCount = 0;
       lastReset = System.nanoTime();

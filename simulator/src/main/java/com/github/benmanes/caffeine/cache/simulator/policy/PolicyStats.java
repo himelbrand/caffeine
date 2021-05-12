@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.DoubleSupplier;
+import java.util.function.IntSupplier;
 import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 
@@ -68,6 +69,8 @@ public class PolicyStats {
   private final Map<Double, Long> timesCounts;
   private final List<Double> accuracy;
   private final List<Double> mape;
+  private double meanActiveLists;
+  private int maxActiveLists;
 
   @SuppressWarnings("AnnotateFormatMethod")
   public PolicyStats(String format, Object... args) {
@@ -101,7 +104,8 @@ public class PolicyStats {
     addMetric("Average Miss Penalty", this::averageMissPenalty);
     addMetric("Average Penalty", this::averagePenalty);
     addMetric("P99",this::computeP99);
-    addMetric(Metric.of("MAPE", (DoubleSupplier) this::computeMAPE, PERCENT, false));
+    addMetric("Mean Active Lists",this::getMeanActiveLists);
+    addMetric("Max Active Lists",this::getMaxActiveLists);
     addMetric("Approx. STD",this::computeSDAccuracy);
     addMetric("Approx. Mean",this::computeMeanAccuracy);
     addMetric("MSE-STD",this::computeSQRSDAccuracy);
@@ -215,6 +219,19 @@ public class PolicyStats {
   public void recordApproxAccuracy(double realMissPenalty, double approximatedMissPenalty){
     accuracy.add(realMissPenalty - approximatedMissPenalty);
     mape.add(Math.abs((realMissPenalty - approximatedMissPenalty)/realMissPenalty));
+  }
+
+  public void recordActiveList(double mean, int max){
+    meanActiveLists = mean;
+    maxActiveLists = max;
+  }
+
+  public int getMaxActiveLists() {
+    return maxActiveLists;
+  }
+
+  public double getMeanActiveLists() {
+    return meanActiveLists;
   }
 
   public double missPenalty() {

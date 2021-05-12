@@ -147,8 +147,33 @@ public class BasicSettings {
         return new HashSet<>(config().getDoubleList("lrbb.epsilon"));
       }else{
         Set<Double> h = new HashSet<>();
-        h.add(0.09);
+        h.add(0.3);
         return h;
+      }
+    }
+    public Set<Integer> maxLists() {
+      if(config().hasPath("lrbb.max-lists")){
+        return new HashSet<>(config().getIntList("lrbb.max-lists"));
+      }else{
+        Set<Integer> h = new HashSet<>();
+        h.add(10);
+        return h;
+      }
+    }
+
+    public double maxMiss() {
+      if(config().hasPath("lrbb.max-miss")){
+        return config().getInt("lrbb.max-miss");
+      }else{
+        return 10000;
+      }
+    }
+
+    public double minMiss() {
+      if(config().hasPath("lrbb.min-miss")){
+        return config().getInt("lrbb.min-miss");
+      }else{
+        return 0;
       }
     }
   }

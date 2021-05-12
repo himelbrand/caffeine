@@ -55,7 +55,7 @@ public final class ClairvoyantLAPolicy implements Policy {
 
   private Recorder recorder;
 
-  private int infiniteTimestamp;
+//  private int infiniteTimestamp;
   private int tick;
 
   public ClairvoyantLAPolicy(Config config) {
@@ -63,7 +63,7 @@ public final class ClairvoyantLAPolicy implements Policy {
     maximumSize = Ints.checkedCast(settings.maximumSize());
     accessTimes = new Long2ObjectOpenHashMap<>();
     policyStats = new PolicyStats(name());
-    infiniteTimestamp = Integer.MAX_VALUE;
+//    infiniteTimestamp = Integer.MAX_VALUE;
     data = new DoubleRBTreeSet();
   }
 
