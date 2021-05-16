@@ -60,6 +60,8 @@ public final class WindowCAPolicy implements Policy {
   private int sizeProtected;
   private double normalizationBias;
   private double normalizationFactor;
+  private double maxDelta;
+  private int maxDeltaCounts;
 
   public WindowCAPolicy(double percentMain, WindowLASettings settings, double k,
                         int maxLists) {
@@ -76,7 +78,9 @@ public final class WindowCAPolicy implements Policy {
     this.headProbation = new LrbbBlock(k, maxLists, maxMain - this.maxProtected);
     this.headWindow = new LrbbBlock(k, maxLists, this.maxWindow);
     this.normalizationBias = 0;
-    this.normalizationFactor = 1;
+    this.normalizationFactor = 0;
+    this.maxDelta = 0;
+    this.maxDeltaCounts = 0;
   }
 
   /**
@@ -185,13 +189,20 @@ public final class WindowCAPolicy implements Policy {
     policyStats.recordOperation();
     Node node = data.get(key);
     if (node == null) {
+      if (event.delta() > normalizationFactor){
+        maxDelta = (maxDelta*maxDeltaCounts + event.delta())/++maxDeltaCounts;
+      }
       normalizationBias = normalizationBias > 0 ? Math.min(normalizationBias,Math.max(0,event.delta())) : Math.max(0,event.delta());
-      normalizationFactor = normalizationFactor*1.5 < Math.max(0,event.delta()) ? Math.max(0,event.delta())*1.5: normalizationFactor;
+//      normalizationFactor = normalizationFactor*1.5 < Math.max(0,event.delta()) ? Math.max(0,event.delta())*1.5: normalizationFactor;
+      if (maxDeltaCounts%1000 == 0 || normalizationFactor == 0){
+        normalizationFactor = maxDelta;
+        maxDeltaCounts = 1;
+      }
       updateNormalization();
 
       onMiss(event);
-      normalizationFactor = Math.min(normalizationFactor,1.5*Math.max(headWindow.getNormalizationFactor(),Math.max(headProtected.getNormalizationFactor(),headProbation.getNormalizationFactor())));
-      updateNormalization();
+//      normalizationFactor = Math.min(normalizationFactor,1.5*Math.max(headWindow.getNormalizationFactor(),Math.max(headProtected.getNormalizationFactor(),headProbation.getNormalizationFactor())));
+//      updateNormalization();
       policyStats.recordMiss();
     } else {
       node.event().updateHitPenalty(event.hitPenalty());
