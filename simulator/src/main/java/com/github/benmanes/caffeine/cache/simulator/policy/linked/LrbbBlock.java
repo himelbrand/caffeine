@@ -51,7 +51,7 @@ public final class LrbbBlock {
   private long lastReset;
   private int currentSize;
 //  final NavigableSet<Entry> priorityQueue;
-  private double maxDelta;
+//  private double maxDelta;
 
 //  private int prevSize;
 //  private double meanActive;
@@ -73,7 +73,7 @@ public final class LrbbBlock {
     this.reqCount = 0;
     this.currentSize = 0;
 //    this.priorityQueue = new TreeSet<>();
-    this.maxDelta = 1;
+//    this.maxDelta = 1;
     this.k = k;
   }
 
@@ -100,14 +100,14 @@ public final class LrbbBlock {
     }
   }
 
-  public double getNormalizationFactor() {
-    return maxDelta;//priorityQueue.isEmpty() ? normalizationFactor : priorityQueue.first().penalty;
-  }
+//  public double getNormalizationFactor() {
+//    return maxDelta;//priorityQueue.isEmpty() ? normalizationFactor : priorityQueue.first().penalty;
+//  }
 
   public void setNormalization(double normalizationBias, double normalizationFactor) {
     this.normalizationBias = normalizationBias;
     this.normalizationFactor = normalizationFactor;
-    this.maxDelta = 1;
+//    this.maxDelta = 1;
   }
 
   private int findList(AccessEvent candidate) {
@@ -186,7 +186,7 @@ public final class LrbbBlock {
     data.put(candidate.key(), node);
     node.appendToTail();
     node.updateOp(currOp++);
-    maxDelta = Math.max(inSentinel.next.event.delta(),maxDelta);
+//    maxDelta = Math.max(inSentinel.next.event.delta(),maxDelta);
 //    priorityQueue.add(new Entry(inSentinel.index,Math.max(0,inSentinel.next.event.delta())));
     return node;
   }
@@ -196,7 +196,7 @@ public final class LrbbBlock {
     data.put(node.key, node);
     node.appendToTail();
     node.updateOp(currOp++);
-    maxDelta = Math.max(inSentinel.next.event.delta(),maxDelta);
+//    maxDelta = Math.max(inSentinel.next.event.delta(),maxDelta);
 //    priorityQueue.add(new Entry(inSentinel.index,Math.max(0,inSentinel.next.event.delta())));
     return node;
   }
@@ -230,7 +230,7 @@ public final class LrbbBlock {
         victim = currVictim;
       }
     }
-    maxDelta = Math.min(currMaxDelta < 0 ? maxDelta : currMaxDelta,maxDelta);
+//    maxDelta = Math.min(currMaxDelta < 0 ? maxDelta : currMaxDelta,maxDelta);
     checkState(victim != null, "\n\nmaxlists: %s\n\n victim is null! activeLists = %s\nlists=%s", maxLists, java.util.Arrays.toString(activeLists.toArray()),java.util.Arrays.toString(lists));
     return victim;
   }
@@ -241,14 +241,14 @@ public final class LrbbBlock {
   public Node addEntry(AccessEvent event){
     int listIndex = findList(event);
     activeLists.add(listIndex);
-    maxDelta = Math.max(event.delta(),maxDelta);
+//    maxDelta = Math.max(event.delta(),maxDelta);
     return addToList(event,lists[listIndex]);
   }
 
   public Node addEntry(Node node){
     int listIndex = findList(node.event());
     activeLists.add(listIndex);
-    maxDelta = Math.max(node.event().delta(),maxDelta);
+//    maxDelta = Math.max(node.event().delta(),maxDelta);
     return addToList(node,lists[listIndex]);
   }
 
@@ -287,7 +287,7 @@ public final class LrbbBlock {
 //      node.moveToTail(currOp++);
 //      priorityQueue.remove(new Entry(head.index));
 //      priorityQueue.add(new Entry(head.index,head.next.event.missPenalty()));
-      maxDelta = Math.max(node.sentinel.next.event.delta(),maxDelta);
+//      maxDelta = Math.max(node.sentinel.next.event.delta(),maxDelta);
       return new ArrayList<>();
     }
   }

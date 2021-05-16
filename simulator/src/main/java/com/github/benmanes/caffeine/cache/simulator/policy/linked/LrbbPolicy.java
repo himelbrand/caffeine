@@ -60,6 +60,7 @@ public final class LrbbPolicy implements Policy {
     private long lastReset;
     private int currentSize;
     private double maxDelta;
+    private int maxDeltaCounts;
 //    private int prevSize;
     private double meanActive;
     private int maxActive;
@@ -81,7 +82,7 @@ public final class LrbbPolicy implements Policy {
         }
         this.resetCount = maximumSize;
         this.normalizationBias = 0;//settings.lrbb().minMiss();
-        this.normalizationFactor = 1;//settings.lrbb().maxMiss() - normalizationBias;
+        this.normalizationFactor = 0;//settings.lrbb().maxMiss() - normalizationBias;
         this.lastReset = System.nanoTime();
         this.reqCount = 0;
         this.currentSize = 0;
@@ -89,7 +90,8 @@ public final class LrbbPolicy implements Policy {
 //        this.prevSize = 0;
         this.countActives = 0;
         this.maxActive = -1;
-        this.maxDelta = 1;
+        this.maxDelta = 0;
+        this.maxDeltaCounts = 0;
     }
 
 
@@ -120,7 +122,6 @@ public final class LrbbPolicy implements Policy {
         final int weight = event.weight();
         final long key = event.key();
         Node old = data.get(key);
-
         admittor.record(event);
         if (reqCount % 100 == 0){
             meanActive = (meanActive*countActives + activeLists.size())/++countActives;
@@ -144,19 +145,25 @@ public final class LrbbPolicy implements Policy {
                 return;
             }
             currentSize += weight;
-            maxDelta = Math.max(event.delta(),maxDelta);
+            if (event.delta() > normalizationFactor){
+                maxDelta = (maxDelta*maxDeltaCounts + event.delta())/++maxDeltaCounts;
+            }
             normalizationBias = normalizationBias > 0 ? Math.min(normalizationBias,Math.max(0,event.delta())) : Math.max(0,event.delta());
-            normalizationFactor = normalizationFactor*1.5 < Math.max(0,event.delta()) ? Math.max(0,event.delta())*1.5 : normalizationFactor;//Math.max(normalizationFactor,event.missPenalty());
+            if (maxDeltaCounts%1000 == 0 || normalizationFactor == 0){
+                normalizationFactor = maxDelta;
+                maxDeltaCounts = 1;
+            }
+//            normalizationFactor = normalizationFactor*1.5 < Math.max(0,event.delta()) ? Math.max(0,event.delta())*1.5 : normalizationFactor;//Math.max(normalizationFactor,event.missPenalty());
 
             evict(event);
 //            normalizationFactor = Math.min(normalizationFactor, 1.5*maxDelta);
         } else {
             old.event.updateHitPenalty(event.hitPenalty());
-            maxDelta = Math.max(old.event.delta(),maxDelta);
+//            maxDelta = Math.max(old.event.delta(),maxDelta);
             policyStats.recordWeightedHit(weight);
             onAccess(old);
         }
-        normalizationFactor = Math.min(normalizationFactor, 1.5*maxDelta);
+//        normalizationFactor = Math.min(normalizationFactor, 1.5*maxDelta);
     }
 
     private int findList(AccessEvent candidate) {
