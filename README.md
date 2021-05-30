@@ -1,4 +1,4 @@
-# Artifact for Lightweight Robust Size Aware Cache Management paper
+# Artifact for Boosting Cache Performance by Access Time Measurements paper
 
 This repository branch includes all the necessary code and instructions to reproduce the main results presented in the [paper](https://arxiv.org/abs/2105.08770).
 
