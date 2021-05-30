@@ -21,14 +21,12 @@ import com.github.benmanes.caffeine.cache.simulator.admission.LATinyLfu;
 import com.github.benmanes.caffeine.cache.simulator.policy.AccessEvent;
 import com.github.benmanes.caffeine.cache.simulator.policy.Policy;
 import com.github.benmanes.caffeine.cache.simulator.policy.PolicyStats;
-import com.github.benmanes.caffeine.cache.simulator.policy.linked.LRBBBlock;
-import com.github.benmanes.caffeine.cache.simulator.policy.linked.LrbbBlock.Node;
-import com.github.benmanes.caffeine.cache.simulator.policy.linked.LrbbBlock;
+import com.github.benmanes.caffeine.cache.simulator.policy.linked.CraBlock.Node;
+import com.github.benmanes.caffeine.cache.simulator.policy.linked.CraBlock;
 import com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.LAHillClimber.QueueType;
 import com.typesafe.config.Config;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import org.apache.commons.lang3.ArrayUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.*;
@@ -57,9 +55,9 @@ public final class AdaptiveCAPolicy implements Policy {
   private final Admittor admittor;
   private final int maximumSize;
 
-  private final LrbbBlock headProbation;
-  private final LrbbBlock headProtected;
-  private final LrbbBlock headWindow;
+  private final CraBlock headProbation;
+  private final CraBlock headProtected;
+  private final CraBlock headWindow;
 
   private int maxWindow;
   private int maxProtected;
@@ -87,16 +85,12 @@ public final class AdaptiveCAPolicy implements Policy {
     this.maxWindow = settings.maximumSize() - maxMain;
     this.data = new Long2ObjectOpenHashMap<>();
     this.maximumSize = settings.maximumSize();
-    this.headProtected = new LrbbBlock(k, maxLists, this.maxProtected);
-    this.headProbation = new LrbbBlock(k, maxLists, maxMain - this.maxProtected);
-    this.headWindow = new LrbbBlock(k, maxLists, this.maxWindow);
+    this.headProtected = new CraBlock(k, maxLists, this.maxProtected);
+    this.headProbation = new CraBlock(k, maxLists, maxMain - this.maxProtected);
+    this.headWindow = new CraBlock(k, maxLists, this.maxWindow);
     this.initialPercentMain = percentMain;
-    this.policyStats = new PolicyStats("LAHillClimberWindow-%s-%s (%s %.0f%% -> %.0f%%)(k=%.2f,maxLists=%d)",
-            headWindow.type(),
-            headProtected.type(),
-            strategy.name().toLowerCase(US),
-            100 * (1.0 - initialPercentMain),
-            (100.0 * maxWindow) / maximumSize, k, maxLists);
+    this.policyStats = new PolicyStats("CAHillClimberWindow (%s)(k=%.2f,maxLists=%d)",
+            strategy.name().toLowerCase(US), k, maxLists);
     this.admittor = new LATinyLfu(settings.config(), policyStats);
     this.climber = strategy.create(settings.config());
     this.k = k;
@@ -118,7 +112,7 @@ public final class AdaptiveCAPolicy implements Policy {
     for (LAHillClimberType climber : settings.strategy()) {
       for (double percentMain : settings.percentMain()) {
         for (double k : settings.kValues()) {
-          for (int ml : settings.lrbb().maxLists()) {
+          for (int ml : settings.maxLists()) {
               policies
                   .add(new AdaptiveCAPolicy(climber, percentMain, settings, k, ml));
           }
@@ -149,7 +143,6 @@ public final class AdaptiveCAPolicy implements Policy {
         maxDelta = (maxDelta*maxDeltaCounts + event.delta())/++maxDeltaCounts;
       }
       normalizationBias = normalizationBias > 0 ? Math.min(normalizationBias,Math.max(0,event.delta())) : Math.max(0,event.delta());
-//      normalizationFactor = normalizationFactor*1.5 < Math.max(0,event.delta()) ? Math.max(0,event.delta())*1.5: normalizationFactor;
       if (samplesCount%1000 == 0 || normalizationFactor == 0){
         normalizationFactor = maxDelta;
         maxDeltaCounts = 1;
@@ -157,13 +150,9 @@ public final class AdaptiveCAPolicy implements Policy {
       }
       updateNormalization();
       onMiss(event);
-//      normalizationFactor = Math.min(normalizationFactor,1.5*Math.max(headWindow.getNormalizationFactor(),Math.max(headProtected.getNormalizationFactor(),headProbation.getNormalizationFactor())));
-//      updateNormalization();
       policyStats.recordMiss();
     } else {
       node.event().updateHitPenalty(event.hitPenalty());
-      policyStats.recordApproxAccuracy(event.missPenalty(), node.event().missPenalty());
-//      node.updateEvent(AccessEvent.forKeyAndPenalties(event.key(), event.hitPenalty(), old_event.missPenalty()));
       if (headWindow.isHit(key)) {
         onWindowHit(node);
         policyStats.recordHit();
@@ -345,7 +334,6 @@ public final class AdaptiveCAPolicy implements Policy {
 
   @Override
   public void finished() {
-//    policyStats.setName(getPolicyName());
     policyStats.setPercentAdaption(
             (maxWindow / (double) maximumSize) - (1.0 - initialPercentMain));
     printSegmentSizes();
@@ -382,37 +370,27 @@ public final class AdaptiveCAPolicy implements Policy {
     }
 
     public List<Double> percentMain() {
-      return config().getDoubleList("la-hill-climber-window.percent-main");
+      return config().getDoubleList("ca-hill-climber-window.percent-main");
     }
 
     public double percentMainProtected() {
-      return config().getDouble("la-hill-climber-window.percent-main-protected");
+      return config().getDouble("ca-hill-climber-window.percent-main-protected");
     }
 
     public Set<LAHillClimberType> strategy() {
-      return config().getStringList("la-hill-climber-window.strategy").stream()
+      return config().getStringList("ca-hill-climber-window.strategy").stream()
           .map(strategy -> strategy.replace('-', '_').toUpperCase(US))
           .map(LAHillClimberType::valueOf)
           .collect(toSet());
     }
 
-    public List<Double> kValues() {
-      return config().getDoubleList("la-hill-climber-window.lrbb.k");
+    public List<Integer> kValues() {
+      return config().getIntList("ca-hill-climber-window.cra.k");
     }
 
-    public List<Double> epsilon() {
-      return config().getDoubleList("la-hill-climber-window.lrbb.epsilon");
+    public List<Integer> maxLists() {
+      return config().getIntList("ca-hill-climber-window.cra.max-lists");
     }
 
-    public List<Double> reset() {
-      return config().getDoubleList("la-hill-climber-window.lrbb.reset");
-    }
-
-    public boolean asLRU() {
-      return config().getBoolean("la-hill-climber-window.as-lru");
-    }
-    public boolean windowAsLRU() {
-      return config().getBoolean("la-hill-climber-window.window-as-lru");
-    }
   }
 }

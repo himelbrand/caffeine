@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Ben Manes. All Rights Reserved.
+ * Copyright 2021 Omri Himelbrand. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
  */
 package com.github.benmanes.caffeine.cache.simulator.policy.sampled;
 
-import static com.github.benmanes.caffeine.cache.simulator.policy.Policy.Characteristic.WEIGHTED;
 import static java.util.Locale.US;
 import static java.util.stream.Collectors.toSet;
 
@@ -27,7 +26,6 @@ import java.util.Random;
 import java.util.Set;
 
 import com.github.benmanes.caffeine.cache.simulator.policy.AccessEvent;
-import com.google.common.collect.Sets;
 
 import com.github.benmanes.caffeine.cache.simulator.BasicSettings;
 import com.github.benmanes.caffeine.cache.simulator.admission.Admission;
@@ -42,19 +40,15 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 
 /**
- * A cache that uses a sampled array of entries to implement simple page replacement algorithms.
- * <p>
- * The sampling approach for an approximate of classical policies is described
- * <a href="http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.110.8469">Efficient Randomized Web
- * Cache Replacement Schemes Using Samples from Past Eviction Times</a>. The Hyperbolic algorithm is
- * a newer addition to this family and is described in
- * <a href="https://www.usenix.org/system/files/conference/atc17/atc17-blankstein.pdf">Hyperbolic
- * Caching: Flexible Caching for Web Applications</a>.
+ * An implementation of cost aware version of The Hyperbolic algorithm which is
+ * a newer addition to the family of sample based eviction policies and is described in
+ *  * <a href="https://www.usenix.org/system/files/conference/atc17/atc17-blankstein.pdf">Hyperbolic
+ *  * Caching: Flexible Caching for Web Applications</a>.
  *
- * @author ben.manes@gmail.com (Ben Manes)
+ * @author himelbrand@gmail.com (Omri Himelbrand)
  */
-@Policy.PolicySpec(name = "sampled.HyperbolicLA")
-public final class HyperbolicLA implements Policy {
+@Policy.PolicySpec(name = "sampled.Hyperbolic-CA")
+public final class HyperbolicCA implements Policy {
   final Long2ObjectMap<Node> data;
   final PolicyStats policyStats;
   final Sample sampleStrategy;
@@ -66,7 +60,7 @@ public final class HyperbolicLA implements Policy {
 
   long tick;
 
-  public HyperbolicLA(Admission admission, Config config) {
+  public HyperbolicCA(Admission admission, Config config) {
     SampledSettings settings = new SampledSettings(config);
     this.policyStats = new PolicyStats(admission.format("sampled.HyperbolicLA"));
     this.admittor = admission.from(config, policyStats);
@@ -83,7 +77,7 @@ public final class HyperbolicLA implements Policy {
   public static Set<Policy> policies(Config config) {
     BasicSettings settings = new BasicSettings(config);
     return settings.admission().stream().map(admission ->
-      new HyperbolicLA(admission, config)
+      new HyperbolicCA(admission, config)
     ).collect(toSet());
   }
   
@@ -110,9 +104,6 @@ public final class HyperbolicLA implements Policy {
       policyStats.recordOperation();
       policyStats.recordHit();
       node.event.updateHitPenalty(event.hitPenalty());
-      policyStats.recordApproxAccuracy(event.missPenalty(), node.event.missPenalty());
-//      AccessEvent old_event = node.event;
-//      node.updateEvent(AccessEvent.forKeyAndPenalties(event.key(), event.hitPenalty(), old_event.missPenalty()));
       node.accessTime = now;
       node.frequency++;
     }

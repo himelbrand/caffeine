@@ -67,18 +67,12 @@ public class PolicyStats {
   private long operationCount;
   private double percentAdaption;
   private final Map<Double, Long> timesCounts;
-  private final List<Double> accuracy;
-  private final List<Double> mape;
-  private double meanActiveLists;
-  private int maxActiveLists;
 
   @SuppressWarnings("AnnotateFormatMethod")
   public PolicyStats(String format, Object... args) {
     this.stopwatch = Stopwatch.createUnstarted();
     this.name = String.format(format, args);
     this.metrics = new LinkedHashMap<>();
-    this.mape = new ArrayList<>();
-    this.accuracy = new ArrayList<>();
     this.timesCounts = new Double2LongOpenHashMap();
     addMetric(Metric.of("Policy", (Supplier<String>) this::name, OBJECT, true));
     addMetric(Metric.of("Hit Rate", (DoubleSupplier) this::hitRate, PERCENT, true));
@@ -104,12 +98,6 @@ public class PolicyStats {
     addMetric("Average Miss Penalty", this::averageMissPenalty);
     addMetric("Average Penalty", this::averagePenalty);
     addMetric("P99",this::computeP99);
-    addMetric("Mean Active Lists",this::getMeanActiveLists);
-    addMetric("Max Active Lists",this::getMaxActiveLists);
-    addMetric("Approx. STD",this::computeSDAccuracy);
-    addMetric("Approx. Mean",this::computeMeanAccuracy);
-    addMetric("MSE-STD",this::computeSQRSDAccuracy);
-    addMetric("MSE",this::computeSQRMeanAccuracy);
     addMetric("Steps", this::operationCount);
     addMetric("Time", this::stopwatch);
   }
@@ -181,8 +169,7 @@ public class PolicyStats {
 
   public void recordHitPenalty(double penalty) {
     hitPenalty += penalty;
-//    if(evictionCount() > 0)
-        timesCounts.merge(penalty, 1L,Long::sum);
+    timesCounts.merge(penalty, 1L,Long::sum);
   }
 
   public double hitPenalty() {
@@ -212,26 +199,7 @@ public class PolicyStats {
 
   public void recordMissPenalty(double penalty) {
     missPenalty += penalty;
-//    if(evictionCount() > 0)
-        timesCounts.merge(penalty,1L,Long::sum);
-  }
-
-  public void recordApproxAccuracy(double realMissPenalty, double approximatedMissPenalty){
-    accuracy.add(realMissPenalty - approximatedMissPenalty);
-    mape.add(Math.abs((realMissPenalty - approximatedMissPenalty)/realMissPenalty));
-  }
-
-  public void recordActiveList(double mean, int max){
-    meanActiveLists = mean;
-    maxActiveLists = max;
-  }
-
-  public int getMaxActiveLists() {
-    return maxActiveLists;
-  }
-
-  public double getMeanActiveLists() {
-    return meanActiveLists;
+    timesCounts.merge(penalty,1L,Long::sum);
   }
 
   public double missPenalty() {
@@ -297,54 +265,6 @@ public class PolicyStats {
               }
       );
       return p99.get();
-  }
-
-  public double computeMeanAccuracy() {
-    double sum = 0;
-    for (double curr : accuracy){
-      sum += curr;
-    }
-    return sum / (double) accuracy.size();
-  }
-
-  public double computeSDAccuracy() {
-    double mean = computeMeanAccuracy();
-    double temp = 0;
-
-    for (double curr : accuracy){
-      double squareDiffToMean = Math.pow(curr - mean, 2);
-      temp += squareDiffToMean;
-    }
-    double meanOfDiffs = temp / (double) accuracy.size();
-    return Math.sqrt(meanOfDiffs);
-  }
-
-  public double computeSQRMeanAccuracy() {
-    double sum = 0;
-    for (double curr : accuracy){
-      sum += Math.abs(curr);
-    }
-    return sum / (double) accuracy.size();
-  }
-
-  public double computeSQRSDAccuracy() {
-    double mean = computeSQRMeanAccuracy();
-    double temp = 0;
-
-    for (double curr : accuracy){
-      double squareDiffToMean = Math.pow(curr - mean, 2);
-      temp += squareDiffToMean;
-    }
-    double meanOfDiffs = temp / (double) accuracy.size();
-    return Math.sqrt(meanOfDiffs);
-  }
-
-  public double computeMAPE() {
-    double sum = 0;
-    for (double curr : mape){
-      sum += curr;
-    }
-    return sum / (double) mape.size();
   }
 
   public void setPercentAdaption(double percentAdaption) {

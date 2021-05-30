@@ -21,9 +21,8 @@ import com.github.benmanes.caffeine.cache.simulator.admission.LATinyLfu;
 import com.github.benmanes.caffeine.cache.simulator.policy.AccessEvent;
 import com.github.benmanes.caffeine.cache.simulator.policy.Policy;
 import com.github.benmanes.caffeine.cache.simulator.policy.PolicyStats;
-import com.github.benmanes.caffeine.cache.simulator.policy.linked.LRBBBlock;
-import com.github.benmanes.caffeine.cache.simulator.policy.linked.LrbbBlock.Node;
-import com.github.benmanes.caffeine.cache.simulator.policy.linked.LrbbBlock;
+import com.github.benmanes.caffeine.cache.simulator.policy.linked.CraBlock.Node;
+import com.github.benmanes.caffeine.cache.simulator.policy.linked.CraBlock;
 import com.typesafe.config.Config;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -49,9 +48,9 @@ public final class WindowCAPolicy implements Policy {
   private final Admittor admittor;
   private final int maximumSize;
 
-  private final LrbbBlock headWindow;
-  private final LrbbBlock headProbation;
-  private final LrbbBlock headProtected;
+  private final CraBlock headWindow;
+  private final CraBlock headProbation;
+  private final CraBlock headProtected;
 
   private final int maxWindow;
   private final int maxProtected;
@@ -64,9 +63,9 @@ public final class WindowCAPolicy implements Policy {
   private int maxDeltaCounts;
   private int samplesCount;
 
-  public WindowCAPolicy(double percentMain, WindowLASettings settings, double k,
+  public WindowCAPolicy(double percentMain, WindowCASettings settings, int k,
                         int maxLists) {
-    this.policyStats = new PolicyStats("sketch.WindowCATinyLfu (%.0f%%,k=%.2f,maxLists=%d)", 100 * (1.0d - percentMain), k,
+    this.policyStats = new PolicyStats("sketch.WindowCATinyLfu (%.0f%%,k=%d,maxLists=%d)", 100 * (1.0d - percentMain), k,
             maxLists);
     this.admittor = new LATinyLfu(settings.config(), policyStats);
     int maxMain = (int) (settings.maximumSize() * percentMain);
@@ -74,10 +73,9 @@ public final class WindowCAPolicy implements Policy {
     this.maxWindow = settings.maximumSize() - maxMain;
     this.data = new Long2ObjectOpenHashMap<>();
     this.maximumSize = settings.maximumSize();
-    boolean asLRU = settings.asLRU();
-    this.headProtected = new LrbbBlock(k, maxLists, this.maxProtected);
-    this.headProbation = new LrbbBlock(k, maxLists, maxMain - this.maxProtected);
-    this.headWindow = new LrbbBlock(k, maxLists, this.maxWindow);
+    this.headProtected = new CraBlock(k, maxLists, this.maxProtected);
+    this.headProbation = new CraBlock(k, maxLists, maxMain - this.maxProtected);
+    this.headWindow = new CraBlock(k, maxLists, this.maxWindow);
     this.normalizationBias = 0;
     this.normalizationFactor = 0;
     this.maxDelta = 0;
@@ -89,17 +87,13 @@ public final class WindowCAPolicy implements Policy {
    * Returns all variations of this policy based on the configuration parameters.
    */
   public static Set<Policy> policies(Config config) {
-    WindowLASettings settings = new WindowLASettings(config);
+    WindowCASettings settings = new WindowCASettings(config);
     return settings.percentMain().stream()
         .map(percentMain ->
             settings.kValues().stream()
-                .map(k ->
-                    settings.reset().stream()
-                        .map(reset ->
-                            settings.lrbb().maxLists().stream()
+                .map(k -> settings.maxLists().stream()
                                 .map(ml -> new WindowCAPolicy(percentMain, settings, k,ml)
-                                ))))
-        .flatMap(x -> x)
+                                )))
         .flatMap(x -> x)
         .flatMap(x -> x)
         .collect(toSet());
@@ -197,7 +191,6 @@ public final class WindowCAPolicy implements Policy {
         maxDelta = (maxDelta*maxDeltaCounts + event.delta())/++maxDeltaCounts;
       }
       normalizationBias = normalizationBias > 0 ? Math.min(normalizationBias,Math.max(0,event.delta())) : Math.max(0,event.delta());
-//      normalizationFactor = normalizationFactor*1.5 < Math.max(0,event.delta()) ? Math.max(0,event.delta())*1.5: normalizationFactor;
       if (samplesCount%1000 == 0 || normalizationFactor == 0){
         normalizationFactor = maxDelta;
         maxDeltaCounts = 1;
@@ -206,13 +199,9 @@ public final class WindowCAPolicy implements Policy {
       updateNormalization();
 
       onMiss(event);
-//      normalizationFactor = Math.min(normalizationFactor,1.5*Math.max(headWindow.getNormalizationFactor(),Math.max(headProtected.getNormalizationFactor(),headProbation.getNormalizationFactor())));
-//      updateNormalization();
       policyStats.recordMiss();
     } else {
       node.event().updateHitPenalty(event.hitPenalty());
-      policyStats.recordApproxAccuracy(event.missPenalty(), node.event().missPenalty());
-//      node.updateEvent(AccessEvent.forKeyAndPenalties(event.key(), event.hitPenalty(), old_event.missPenalty()));
       if (headWindow.isHit(key)) {
         onWindowHit(node);
         policyStats.recordHit();
@@ -244,34 +233,26 @@ public final class WindowCAPolicy implements Policy {
     WINDOW, PROBATION, PROTECTED
   }
 
-  public static final class WindowLASettings extends BasicSettings {
+  public static final class WindowCASettings extends BasicSettings {
 
-    public WindowLASettings(Config config) {
+    public WindowCASettings(Config config) {
       super(config);
     }
 
     public List<Double> percentMain() {
-      return config().getDoubleList("la-window.percent-main");
+      return config().getDoubleList("ca-window.percent-main");
     }
 
     public double percentMainProtected() {
-      return config().getDouble("la-window.percent-main-protected");
+      return config().getDouble("ca-window.percent-main-protected");
     }
 
-    public List<Double> kValues() {
-      return config().getDoubleList("la-window.lrbb.k");
+    public List<Integer> kValues() {
+      return config().getIntList("ca-window.cra.k");
     }
 
-    public List<Double> epsilon() {
-      return config().getDoubleList("la-window.lrbb.epsilon");
-    }
-
-    public List<Double> reset() {
-      return config().getDoubleList("la-window.lrbb.reset");
-    }
-
-    public boolean asLRU() {
-      return config().getBoolean("la-window.as-lru");
+    public List<Integer> maxLists() {
+      return config().getIntList("ca-window.cra.max-lists");
     }
   }
 }

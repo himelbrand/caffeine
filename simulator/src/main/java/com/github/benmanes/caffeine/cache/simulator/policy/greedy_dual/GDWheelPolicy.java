@@ -79,7 +79,6 @@ public final class GDWheelPolicy implements Policy {
       onMiss(event, node);
     } else {
       policyStats.recordWeightedHit(event.weight());
-      policyStats.recordApproxAccuracy(event.missPenalty(), node.cost);
       onHit(event, node);
     }
   }

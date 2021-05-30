@@ -134,7 +134,6 @@ public final class LRBB implements Policy {
       evict(event);
     } else {
       old.event.updateHitPenalty(event.hitPenalty());
-      policyStats.recordApproxAccuracy(event.missPenalty(), old.event().missPenalty());
       policyStats.recordWeightedHit(weight);
       onAccess(old);
     }

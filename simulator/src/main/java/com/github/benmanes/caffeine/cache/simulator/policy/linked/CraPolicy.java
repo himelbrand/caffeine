@@ -21,16 +21,13 @@ import com.github.benmanes.caffeine.cache.simulator.admission.Admittor;
 import com.github.benmanes.caffeine.cache.simulator.policy.AccessEvent;
 import com.github.benmanes.caffeine.cache.simulator.policy.Policy;
 import com.github.benmanes.caffeine.cache.simulator.policy.PolicyStats;
-import com.github.benmanes.caffeine.cache.simulator.policy.greedy_dual.CampPolicy;
 import com.google.common.base.MoreObjects;
 import com.typesafe.config.Config;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import org.apache.commons.lang3.ArrayUtils;
 
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkState;
 
@@ -40,14 +37,13 @@ import static com.google.common.base.Preconditions.checkState;
  *
  * @author himelbrand@gmail.com (Omri Himelbrand)
  */
-@Policy.PolicySpec(name = "linked.LRBBv2")
-public final class LrbbPolicy implements Policy {
+@Policy.PolicySpec(name = "linked.CRA")
+public final class CraPolicy implements Policy {
 
     final Long2ObjectMap<Node> data;
     final Node[] lists;
     final Set<Integer> activeLists;
     final PolicyStats policyStats;
-//    final NavigableSet<Entry> priorityQueue;
     final Admittor admittor;
     final int maximumSize;
     private final int resetCount;
@@ -61,18 +57,14 @@ public final class LrbbPolicy implements Policy {
     private int currentSize;
     private double maxDelta;
     private int maxDeltaCounts;
-//    private int prevSize;
-    private double meanActive;
-    private int maxActive;
-    private long countActives;
     private int samplesCount;
 
 
-    public LrbbPolicy(Admission admission, Config config, double k, int maxLists) {
+    public CraPolicy(Admission admission, Config config, int k, int maxLists) {
         BasicSettings settings = new BasicSettings(config);
         this.k = k;
         this.activeLists = new HashSet<>();
-        this.policyStats = new PolicyStats(admission.format(String.format("LRBB(k=%.0f,maxLists=%d)", k, maxLists)));
+        this.policyStats = new PolicyStats(admission.format(String.format("CRA(k=%d,maxLists=%d)", k, maxLists)));
         this.admittor = admission.from(config, policyStats);
         this.maximumSize = settings.maximumSize();
         this.currOp = 1;
@@ -83,15 +75,11 @@ public final class LrbbPolicy implements Policy {
             this.lists[i] = new Node(i);
         }
         this.resetCount = maximumSize;
-        this.normalizationBias = 0;//settings.lrbb().minMiss();
-        this.normalizationFactor = 0;//settings.lrbb().maxMiss() - normalizationBias;
+        this.normalizationBias = 0;
+        this.normalizationFactor = 0;
         this.lastReset = System.nanoTime();
         this.reqCount = 0;
         this.currentSize = 0;
-//        this.priorityQueue = new TreeSet<>();
-//        this.prevSize = 0;
-        this.countActives = 0;
-        this.maxActive = -1;
         this.maxDelta = 0;
         this.maxDeltaCounts = 0;
         this.samplesCount = 0;
@@ -106,9 +94,9 @@ public final class LrbbPolicy implements Policy {
         BasicSettings settings = new BasicSettings(config);
         Set<Policy> policies = new HashSet<>();
         for (Admission admission : settings.admission()) {
-            for (double k : settings.lrbb().kValues()) {
-                for (int maxLists : settings.lrbb().maxLists()) {
-                    policies.add(new LrbbPolicy(admission, config, k, maxLists));
+            for (int k : settings.cra().kValues()) {
+                for (int maxLists : settings.cra().maxLists()) {
+                    policies.add(new CraPolicy(admission, config, k, maxLists));
                 }
             }
         }
@@ -127,13 +115,6 @@ public final class LrbbPolicy implements Policy {
         final long key = event.key();
         Node old = data.get(key);
         admittor.record(event);
-        if (reqCount % 100 == 0){
-            meanActive = (meanActive*countActives + activeLists.size())/++countActives;
-            if(maxActive < activeLists.size()){
-                maxActive = activeLists.size();
-            }
-            policyStats.recordActiveList(meanActive,maxActive);
-        }
         reqCount++;
 
         if (reqCount > resetCount) {
@@ -159,26 +140,16 @@ public final class LrbbPolicy implements Policy {
                 maxDeltaCounts = 1;
                 samplesCount = 0;
             }
-//            normalizationFactor = normalizationFactor*1.5 < Math.max(0,event.delta()) ? Math.max(0,event.delta())*1.5 : normalizationFactor;//Math.max(normalizationFactor,event.missPenalty());
-
             evict(event);
-//            normalizationFactor = Math.min(normalizationFactor, 1.5*maxDelta);
         } else {
             old.event.updateHitPenalty(event.hitPenalty());
-//            maxDelta = Math.max(old.event.delta(),maxDelta);
             policyStats.recordWeightedHit(weight);
             onAccess(old);
         }
-//        normalizationFactor = Math.min(normalizationFactor, 1.5*maxDelta);
     }
 
     private int findList(AccessEvent candidate) {
-//        while (index >= maxLists) {
-//            index--;
-//        }
-//        assert index >= 0;
         return candidate.delta() < 0 ? 0 : Math.max(1,Math.min((int) (((candidate.delta() - normalizationBias) / normalizationFactor) * (maxLists+1)),maxLists));
-//        return Math.max(0,Math.min((int) ((candidate.delta() / normalizationFactor) * maxLists),maxLists-1));
     }
 
     /**
@@ -188,14 +159,7 @@ public final class LrbbPolicy implements Policy {
         if (currentSize > maximumSize) {
             while (currentSize > maximumSize) {
                 Node victim = findVictim();
-                try {
-                    findList(victim.event);
-                }catch (Exception e){
-                    System.out.println("Error");
-                    System.out.println(victim==null);
-
-                    System.out.println(victim);
-                }
+                findList(victim.event);
                 int victimListIndex = victim.sentinel.index;
                 policyStats.recordEviction();
                 boolean admit = admittor.admit(candidate, victim.event);
@@ -215,10 +179,8 @@ public final class LrbbPolicy implements Policy {
                         System.out.println(victimListIndex);
                         throw e;
                     }
-
                     if (victimSentinel.size == 0 && victimSentinel != inSentinel) {
                         activeLists.remove(victimListIndex);
-//                        priorityQueue.remove(new Entry(victimListIndex));
                     }
                     addToList(candidate, inSentinel);
 
@@ -240,9 +202,6 @@ public final class LrbbPolicy implements Policy {
         data.put(candidate.key(), node);
         node.appendToTail();
         node.updateOp(currOp++);
-        maxDelta = Math.max(inSentinel.next.event.delta(),maxDelta);
-
-//        priorityQueue.add(new Entry(inSentinel.index,Math.max(0,inSentinel.next.event.delta())));
     }
 
     private Node findVictim() {
@@ -250,7 +209,6 @@ public final class LrbbPolicy implements Policy {
         Node victim = null;
         Node currSentinel;
         Node currVictim;
-        double currMaxDelta = -1;
         double minRank = Double.MAX_VALUE;
         if (activeLists.contains(0)){
             currSentinel = lists[0];
@@ -262,8 +220,6 @@ public final class LrbbPolicy implements Policy {
                 continue;
             }
             currVictim = currSentinel.next;
-            currMaxDelta = Math.max(currVictim.event.delta(),currMaxDelta);
-
             if (currVictim.lastTouch < lastReset) {
                 currVictim.resetOp();
             }
@@ -275,8 +231,7 @@ public final class LrbbPolicy implements Policy {
                 victim = currVictim;
             }
         }
-        maxDelta = Math.min(currMaxDelta < 0 ? maxDelta : currMaxDelta,maxDelta);
-        checkState(victim != null, "\n\nmaxlists: %s\n\n victim is null! activeLists = %s\nlists=%s", maxLists, java.util.Arrays.toString(activeLists.toArray()),java.util.Arrays.toString(lists));
+        checkState(victim != null, "CRA - victim is null");
         return victim;
     }
 
@@ -289,53 +244,24 @@ public final class LrbbPolicy implements Policy {
             node.remove();
             if (victimSentinel.size == 0) {
                 activeLists.remove(victimSentinel.index);
-//                priorityQueue.remove(new Entry(victimSentinel.index));
             }
         } else {
             int index = findList(node.event);
-            if (index != victimSentinel.index){
-//                AccessEvent event = node.event;
+            if (index != victimSentinel.index) {
                 node.remove();
                 if (victimSentinel.size == 0) {
                     activeLists.remove(victimSentinel.index);
-//                priorityQueue.remove(new Entry(victimSentinel.index));
                 }
                 node.sentinel = lists[index];
                 lists[index].size += 1;
                 node.moveToTail(currOp++);
-            }else{
+            } else {
                 node.moveToTail(currOp++);
             }
-
-//            priorityQueue.remove(new Entry(victimSentinel.index));
-//            priorityQueue.add(new Entry(victimSentinel.index,Math.max(0,victimSentinel.next.event.delta())));
-            maxDelta = Math.max(node.sentinel.next.event.delta(),maxDelta);
         }
 
     }
 
-    @Override
-    public void finished() {
-        System.out.printf("Max lists: %d\nMax active lists:%d\nMean number of active lists: %f\n",maxLists,maxActive,meanActive);
-    }
-    static final private class Entry implements Comparable<Entry> {
-        final int index;
-        double penalty;
-
-        public Entry(int index, double penalty) {
-            this.index = index;
-            this.penalty = penalty;
-        }
-
-        public Entry(int index) {
-            this.index = index;
-        }
-
-        @Override
-        public int compareTo(Entry o) {
-            return o.index == index ? 0 : (int) Math.signum(o.penalty - penalty);
-        }
-    }
     /**
      * A node on the double-linked list.
      */
@@ -350,7 +276,6 @@ public final class LrbbPolicy implements Policy {
         AccessEvent event;
         long lastOp;
         long lastTouch;
-        double totalBenefit;
         int index;
 
         /**
@@ -364,7 +289,6 @@ public final class LrbbPolicy implements Policy {
             this.event = null;
             this.lastOp = 1;
             this.size = 0;
-            this.totalBenefit = 0;
             this.index = index;
         }
 
@@ -377,6 +301,8 @@ public final class LrbbPolicy implements Policy {
             this.weight = weight;
             this.event = event;
             this.lastOp = 1;
+            prev = null;
+            next = null;
         }
 
         /**
@@ -389,19 +315,7 @@ public final class LrbbPolicy implements Policy {
             next = sentinel;
             prev = tail;
             sentinel.size += 1;
-            sentinel.totalBenefit += this.event.delta();
         }
-
-        public void appendToHead() {
-            Node head = sentinel.next;
-            sentinel.next = this;
-            head.prev = this;
-            next = head;
-            prev = sentinel;
-            sentinel.size += 1;
-            sentinel.totalBenefit += this.event.delta();
-        }
-
 
         /**
          * Appends the node to the tail of the list.
@@ -427,8 +341,6 @@ public final class LrbbPolicy implements Policy {
             prev.next = next;
             next.prev = prev;
             prev = next = null;
-//            key = Long.MIN_VALUE;
-            sentinel.totalBenefit -= this.event.delta();
         }
 
         /**
@@ -480,17 +392,6 @@ public final class LrbbPolicy implements Policy {
         public void resetOp() {
             lastOp = Math.max(1, lastOp >> 1);
             lastTouch = System.nanoTime();
-        }
-
-        /**
-         * Updates the node's event without moving it
-         */
-        public void updateEvent(AccessEvent e) {
-            event = e;
-        }
-
-        public double avgBenefit() {
-            return this.sentinel.totalBenefit / getSize();
         }
 
         public int getSize() {

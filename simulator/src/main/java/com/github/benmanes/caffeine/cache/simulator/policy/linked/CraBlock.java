@@ -16,13 +16,10 @@
 package com.github.benmanes.caffeine.cache.simulator.policy.linked;
 
 
-import com.github.benmanes.caffeine.cache.simulator.admission.Admittor;
 import com.github.benmanes.caffeine.cache.simulator.policy.AccessEvent;
-import com.github.benmanes.caffeine.cache.simulator.policy.PolicyStats;
 import com.google.common.base.MoreObjects;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import org.apache.commons.lang3.ArrayUtils;
 
 import java.util.*;
 
@@ -35,7 +32,7 @@ import static com.google.common.base.Preconditions.checkState;
  *
  * @author himelbrand@gmail.com (Omri Himelbrand)
  */
-public final class LrbbBlock {
+public final class CraBlock {
 
   final Long2ObjectMap<Node> data;
   final Node[] lists;
@@ -50,15 +47,8 @@ public final class LrbbBlock {
   private int currOp;
   private long lastReset;
   private int currentSize;
-//  final NavigableSet<Entry> priorityQueue;
-//  private double maxDelta;
 
-//  private int prevSize;
-//  private double meanActive;
-//  private int maxActive;
-//  private long countActives;
-
-  public LrbbBlock(double k, int maxLists, int maximumSize) {
+  public CraBlock(double k, int maxLists, int maximumSize) {
     this.maximumSize = maximumSize;
     this.activeLists = new HashSet<>();
     this.currOp = 1;
@@ -72,8 +62,6 @@ public final class LrbbBlock {
     this.lastReset = System.nanoTime();
     this.reqCount = 0;
     this.currentSize = 0;
-//    this.priorityQueue = new TreeSet<>();
-//    this.maxDelta = 1;
     this.k = k;
   }
 
@@ -92,55 +80,20 @@ public final class LrbbBlock {
         return new ArrayList<>();
       }
       currentSize += weight;
-//      normalizationBias = normalizationBias > 0 ? Math.min(normalizationBias,event.missPenalty()) : event.missPenalty();
-//      normalizationFactor = Math.max(normalizationFactor,event.missPenalty());
       return evict(event);
     } else {
       return onAccess(old);
     }
   }
 
-//  public double getNormalizationFactor() {
-//    return maxDelta;//priorityQueue.isEmpty() ? normalizationFactor : priorityQueue.first().penalty;
-//  }
 
   public void setNormalization(double normalizationBias, double normalizationFactor) {
     this.normalizationBias = normalizationBias;
     this.normalizationFactor = normalizationFactor;
-//    this.maxDelta = 1;
   }
 
   private int findList(AccessEvent candidate) {
     return candidate.delta() < 0 ? 0 : Math.max(1,Math.min((int) (((candidate.delta() - normalizationBias) / normalizationFactor) * (maxLists+1)),maxLists));
-
-//    double d = Double.MAX_VALUE;
-//    double tmpD;
-//    double minRange;
-//    double maxRange;
-//    int index = -1;
-//    int insertAt = 0;
-//    Node sentinel;
-//
-//    for (int i = 0; i < lists.size(); i++) {
-//      sentinel = lists.get(i);
-//      if (sentinel.next == sentinel || sentinel.size <= 0) {
-//        continue;
-//      }
-//      minRange = Math.pow(sentinel.avgBenefit(), 1 - eps);
-//      maxRange = Math.pow(sentinel.avgBenefit(), 1 + eps);
-//      if (candidate.delta() >= minRange && candidate.delta() <= maxRange) {
-//        index = i;
-//      }
-//      tmpD = Math.abs(candidate.delta() - sentinel.avgBenefit());
-//      if (tmpD < d) {
-//        d = tmpD;
-//        insertAt = i;
-//      }
-//    }
-//    if (index < 0 && lists.size() < maxLists) {
-//      lists.add(insertAt, new Node());
-//    }
-//    return insertAt;
   }
 
   /**
@@ -166,13 +119,11 @@ public final class LrbbBlock {
         victim.remove();
         if (victimSent.size <= 0 && victimSent != inSentinel) {
           activeLists.remove(victimListIndex);
-//          priorityQueue.remove(new Entry(victimListIndex));
         }
         evictions.add(currKey);
       }
       addToList(candidate, inSentinel);
       activeLists.add(listIndex);
-//      normalizationFactor = Math.min(normalizationFactor, Collections.max(Arrays.asList(ArrayUtils.toObject(activeLists.stream().mapToDouble(x-> lists[x].next.event().missPenalty()).toArray()))));
       return evictions;
     } else {
       activeLists.add(listIndex);
@@ -186,8 +137,6 @@ public final class LrbbBlock {
     data.put(candidate.key(), node);
     node.appendToTail();
     node.updateOp(currOp++);
-//    maxDelta = Math.max(inSentinel.next.event.delta(),maxDelta);
-//    priorityQueue.add(new Entry(inSentinel.index,Math.max(0,inSentinel.next.event.delta())));
     return node;
   }
 
@@ -196,8 +145,6 @@ public final class LrbbBlock {
     data.put(node.key, node);
     node.appendToTail();
     node.updateOp(currOp++);
-//    maxDelta = Math.max(inSentinel.next.event.delta(),maxDelta);
-//    priorityQueue.add(new Entry(inSentinel.index,Math.max(0,inSentinel.next.event.delta())));
     return node;
   }
 
@@ -230,8 +177,7 @@ public final class LrbbBlock {
         victim = currVictim;
       }
     }
-//    maxDelta = Math.min(currMaxDelta < 0 ? maxDelta : currMaxDelta,maxDelta);
-    checkState(victim != null, "\n\nmaxlists: %s\n\n victim is null! activeLists = %s\nlists=%s", maxLists, java.util.Arrays.toString(activeLists.toArray()),java.util.Arrays.toString(lists));
+    checkState(victim != null, "CRA Block - maxlists: %s\n\n victim is null! activeLists = %s\nlists=%s", maxLists, java.util.Arrays.toString(activeLists.toArray()),java.util.Arrays.toString(lists));
     return victim;
   }
   public void remove(long key){
@@ -241,14 +187,12 @@ public final class LrbbBlock {
   public Node addEntry(AccessEvent event){
     int listIndex = findList(event);
     activeLists.add(listIndex);
-//    maxDelta = Math.max(event.delta(),maxDelta);
     return addToList(event,lists[listIndex]);
   }
 
   public Node addEntry(Node node){
     int listIndex = findList(node.event());
     activeLists.add(listIndex);
-//    maxDelta = Math.max(node.event().delta(),maxDelta);
     return addToList(node,lists[listIndex]);
   }
 
@@ -264,7 +208,6 @@ public final class LrbbBlock {
       node.remove();
       if (head.size <= 0) {
         activeLists.remove(head.index);
-//        priorityQueue.remove(new Entry(head.index));
       }
       List<Long> l = new ArrayList<>();
       l.add(key);
@@ -272,11 +215,9 @@ public final class LrbbBlock {
     } else {
       int index = findList(node.event);
       if (index != head.index){
-//                AccessEvent event = node.event;
         node.remove();
         if (head.size == 0) {
           activeLists.remove(head.index);
-//                priorityQueue.remove(new Entry(victimSentinel.index));
         }
         node.sentinel = lists[index];
         lists[index].size += 1;
@@ -284,10 +225,6 @@ public final class LrbbBlock {
       }else{
         node.moveToTail(currOp++);
       }
-//      node.moveToTail(currOp++);
-//      priorityQueue.remove(new Entry(head.index));
-//      priorityQueue.add(new Entry(head.index,head.next.event.missPenalty()));
-//      maxDelta = Math.max(node.sentinel.next.event.delta(),maxDelta);
       return new ArrayList<>();
     }
   }
@@ -295,24 +232,6 @@ public final class LrbbBlock {
     return (maxLists == 1) ? "LRU" : "LRBB";
   }
 
-  static final private class Entry implements Comparable<Entry> {
-    final int index;
-    double penalty;
-
-    public Entry(int index, double penalty) {
-      this.index = index;
-      this.penalty = penalty;
-    }
-
-    public Entry(int index) {
-      this.index = index;
-    }
-
-    @Override
-    public int compareTo(Entry o) {
-      return o.index == index ? 0 : (int) Math.signum(o.penalty - penalty);
-    }
-  }
 
   /**
    * A node on the double-linked list.
@@ -367,17 +286,6 @@ public final class LrbbBlock {
       next = sentinel;
       prev = tail;
       sentinel.size += 1;
-//      sentinel.totalBenefit += this.event.delta();
-    }
-
-    public void appendToHead() {
-      Node head = sentinel.next;
-      sentinel.next = this;
-      head.prev = this;
-      next = head;
-      prev = sentinel;
-      sentinel.size += 1;
-      sentinel.totalBenefit += this.event.delta();
     }
 
 
@@ -389,7 +297,6 @@ public final class LrbbBlock {
       prev.next = next;
       next.prev = prev;
       prev = next = null;
-//      sentinel.totalBenefit -= this.event.delta();
     }
 
     /**
@@ -440,17 +347,6 @@ public final class LrbbBlock {
     public void resetOp() {
       lastOp = Math.max(1, lastOp >> 1);
       lastTouch = System.nanoTime();
-    }
-
-    /**
-     * Updates the node's event without moving it
-     */
-    public void updateEvent(AccessEvent e) {
-      event = e;
-    }
-
-    public double avgBenefit() {
-      return this.sentinel.totalBenefit / getSize();
     }
 
     public int getSize() {

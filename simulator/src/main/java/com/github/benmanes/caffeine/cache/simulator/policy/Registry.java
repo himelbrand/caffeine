@@ -23,11 +23,10 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import com.github.benmanes.caffeine.cache.simulator.policy.linked.*;
 import com.github.benmanes.caffeine.cache.simulator.policy.opt.ClairvoyantLAPolicy;
-import com.github.benmanes.caffeine.cache.simulator.policy.sampled.HyperbolicLA;
+import com.github.benmanes.caffeine.cache.simulator.policy.sampled.HyperbolicCA;
 import com.github.benmanes.caffeine.cache.simulator.policy.sketch.WindowCAPolicy;
-import com.github.benmanes.caffeine.cache.simulator.policy.sketch.WindowLAPolicy;
 import com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.AdaptiveCAPolicy;
-import com.github.benmanes.caffeine.cache.simulator.policy.sketch.climbing.LAHillClimberWindowPolicy;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -169,7 +168,7 @@ public final class Registry {
     });
     registerMany(SegmentedLruPolicy.class, SegmentedLruPolicy::policies);
     registerMany(LRBB.class, LRBB::policies);
-    registerMany(LrbbPolicy.class, LrbbPolicy::policies);
+    registerMany(CraPolicy.class, CraPolicy::policies);
     registerMany(S4LruPolicy.class, S4LruPolicy::policies);
     register(MultiQueuePolicy.class, MultiQueuePolicy::new);
   }
@@ -179,7 +178,7 @@ public final class Registry {
       registerMany(priority.label(), SampledPolicy.class,
           config -> SampledPolicy.policies(config, priority));
     });
-    registerMany(HyperbolicLA.class, HyperbolicLA::policies);
+    registerMany(HyperbolicCA.class, HyperbolicCA::policies);
   }
 
   private void registerTwoQueue() {
@@ -189,7 +188,6 @@ public final class Registry {
 
   private void registerSketch() {
     registerMany(WindowTinyLfuPolicy.class, WindowTinyLfuPolicy::policies);
-    registerMany(WindowLAPolicy.class, WindowLAPolicy::policies);
     registerMany(WindowCAPolicy.class, WindowCAPolicy::policies);
     registerMany(S4WindowTinyLfuPolicy.class, S4WindowTinyLfuPolicy::policies);
     registerMany(LruWindowTinyLfuPolicy.class, LruWindowTinyLfuPolicy::policies);
@@ -201,7 +199,6 @@ public final class Registry {
     registerMany(FeedbackWindowTinyLfuPolicy.class, FeedbackWindowTinyLfuPolicy::policies);
 
     registerMany(HillClimberWindowTinyLfuPolicy.class, HillClimberWindowTinyLfuPolicy::policies);
-    registerMany(LAHillClimberWindowPolicy.class, LAHillClimberWindowPolicy::policies);
     registerMany(AdaptiveCAPolicy.class, AdaptiveCAPolicy::policies);
     register(TinyCachePolicy.class, TinyCachePolicy::new);
     register(WindowTinyCachePolicy.class, WindowTinyCachePolicy::new);
