@@ -62,6 +62,7 @@ public final class WindowCAPolicy implements Policy {
   private double normalizationFactor;
   private double maxDelta;
   private int maxDeltaCounts;
+  private int samplesCount;
 
   public WindowCAPolicy(double percentMain, WindowLASettings settings, double k,
                         int maxLists) {
@@ -81,6 +82,7 @@ public final class WindowCAPolicy implements Policy {
     this.normalizationFactor = 0;
     this.maxDelta = 0;
     this.maxDeltaCounts = 0;
+    this.samplesCount = 0;
   }
 
   /**
@@ -189,14 +191,17 @@ public final class WindowCAPolicy implements Policy {
     policyStats.recordOperation();
     Node node = data.get(key);
     if (node == null) {
+
       if (event.delta() > normalizationFactor){
+        samplesCount++;
         maxDelta = (maxDelta*maxDeltaCounts + event.delta())/++maxDeltaCounts;
       }
       normalizationBias = normalizationBias > 0 ? Math.min(normalizationBias,Math.max(0,event.delta())) : Math.max(0,event.delta());
 //      normalizationFactor = normalizationFactor*1.5 < Math.max(0,event.delta()) ? Math.max(0,event.delta())*1.5: normalizationFactor;
-      if (maxDeltaCounts%1000 == 0 || normalizationFactor == 0){
+      if (samplesCount%1000 == 0 || normalizationFactor == 0){
         normalizationFactor = maxDelta;
         maxDeltaCounts = 1;
+        samplesCount = 0;
       }
       updateNormalization();
 
