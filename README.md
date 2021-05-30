@@ -55,13 +55,13 @@ All traces can be downloaded freely and run in the simulator with the appropriat
 
 Trace | Link | Notes
 -|-|-
-DNS | [Practical Bounds Github](https://github.com/dasebe/optimalwebcaching) | [Direct link](http://dat-berger.de/cachetraces/
-AOL | [Practical Bounds Github](https://github.com/dasebe/optimalwebcaching) | [Direct link](http://dat-berger.de/cachetraces/sigmetrics18/cdn1_500m_sigmetrics18.tr.lzma)
-WS | [Practical Bounds Github](https://github.com/dasebe/optimalwebcaching) | [Direct link](http://dat-berger.de/cachetraces/
-MULTI1 | [LRB Github](https://github.com/sunnyszy/lrb) | [Direct link](http://lrb.cs.princeton.edu/wiki2018.tr.tar.gz)
-MULTI2 | [LRB Github](https://github.com/sunnyszy/lrb) | [Direct link](http://lrb.cs.princeton.edu/wiki2019.tr.tar.gz)
-OLTP2 | [SNIA IOTTA Repository](http://iotta.snia.org/traces/388) | `proj2` file
-LINUX | [SNIA IOTTA Repository](http://iotta.snia.org/traces/388) | `src10` file
-MAC | [SNIA IOTTA Repository](http://iotta.snia.org/traces/388) | `usr0` file
-WIKI | [SNIA IOTTA Repository](http://iotta.snia.org/traces/27917) | Combination of the files from `02-02-2016`
+DNS | |
+AOL ||
+WS | |
+MULTI1 | |
+MULTI2 | |
+OLTP2 | |
+LINUX | |
+MAC | |
+WIKI | |
 SYSTOR17 | [SNIA IOTTA Repository](http://iotta.snia.org/traces/4964) | Combination of the files in `systor17-01.tar`
