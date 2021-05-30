@@ -49,11 +49,11 @@ The size of the cache can be set via the `maximum-size` parameter.
 
 The path to and the format of the trace through the `files` section.
 
-## Traces
+## Workloads
 
-All traces can be downloaded freely and run in the simulator with the appropriate format.
+All workloads can be downloaded freely and run in the simulator with the appropriate format.
 
-Trace | Link | Notes
+Workload | Link | Notes
 -|-|-
 DNS | |
 AOL ||
