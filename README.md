@@ -53,15 +53,16 @@ The path to and the format of the trace through the `files` section.
 
 All workloads can be downloaded freely and run in the simulator with the appropriate format.
 
-Workload | Link | Notes
--|-|-
-DNS | |
-AOL ||
-WS | |
-MULTI1 | |
-MULTI2 | |
-OLTP2 | |
-LINUX | |
-MAC | |
-WIKI | |
-SYSTOR17 | [SNIA IOTTA Repository](http://iotta.snia.org/traces/4964) | Combination of the files in `systor17-01.tar`
+Workload | Link | Notes | Parser format
+-|-|-|-
+DNS | [direct download](https://drive.google.com/file/d/1vt8NZFia2c8CswzHQqI_ABB3-3J3XZwj/view?usp=sharing) | Was ceated using [dns-timing](https://github.com/himelbrand/dns-timing) | `dns`
+AOL |[direct download](https://drive.google.com/file/d/1uKqa6aytR9CITIFYgWqDWWuPisO22AAx/view?usp=sharing) | Used the [AOL 2006 dataset](https://academictorrents.com/details/cd339bddeae7126bb3b15f3a72c903cb0c401bd1) combined with timing done using the [DuckDuckGo](https://duckduckgo.com/api) API | `latency`
+WS | [direct download](https://drive.google.com/file/d/1Vr0jioIcKsjzQtpYhL4oqJc9bdeMxFQu/view?usp=sharing) | Used the [2017-2019 Search Engine Keywords](https://www.kaggle.com/hofesiy/2019-search-engine-keywords) combined with timing done using the [DuckDuckGo](https://duckduckgo.com/api) API | `latency`
+MULTI1 | [direct download]() | Used `multi1` from [Caffeine Simulator](https://github.com/ben-manes/caffeine/tree/master/simulator/src/main/resources/com/github/benmanes/caffeine/cache/simulator/parser) available traces and given as input to [access-times-trace-generator](https://github.com/himelbrand/access-times-trace-generator) to create this workload | `latency`
+MULTI2 | [direct download]() | Used `multi2` from [Caffeine Simulator](https://github.com/ben-manes/caffeine/tree/master/simulator/src/main/resources/com/github/benmanes/caffeine/cache/simulator/parser) available traces and given as input to [access-times-trace-generator](https://github.com/himelbrand/access-times-trace-generator) to create this workload | `latency`
+OLTP2 | [direct download]() | Used `oltp2` from [UMassTraceRepository](http://traces.cs.umass.edu) and given as input to [access-times-trace-generator](https://github.com/himelbrand/access-times-trace-generator) to create this workload | `latency`
+LINUX | [direct download]() | Used one of the linux traces from [UMassTraceRepository](http://traces.cs.umass.edu) and given as input to [access-times-trace-generator](https://github.com/himelbrand/access-times-trace-generator) to create this workload | `latency`
+MAC | [direct download]() | Used one of the macbook traces from [UMassTraceRepository](http://traces.cs.umass.edu) and given as input to [access-times-trace-generator](https://github.com/himelbrand/access-times-trace-generator) to create this workload | `latency`
+GCC | [direct download]() | Used `085.gcc.10m` from [NMSU Tracebase](http://tracebase.nmsu.edu/tracebase/traces) and given as input to [access-times-trace-generator](https://github.com/himelbrand/access-times-trace-generator) to create this workload | `latency`
+WIKI | [direct download]() |  Used `wiki.1190207720.gz` from [Wikibench access traces](http://www.wikibench.eu/?page_id=60) and given as input to [access-times-trace-generator](https://github.com/himelbrand/access-times-trace-generator) to create this workload | `latency`
+SYSTOR17 | [SNIA IOTTA Repository](http://iotta.snia.org/traces/4964) | Combination of the files in `systor17-01.tar` | `snia-systor`
