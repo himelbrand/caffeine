@@ -14,7 +14,7 @@ To run LRU, CAMP, GDWheel, CRA and W-TinyLFU versions policies, we use [Caffeine
     # move to the right branch:
     git checkout submission
 
-    # allow gradle download dependencies and self check its running:
+    # allow gradle download dependencies and self check its running (if some stages fail, try and skip this step):
     ./gradlew build -x test
 
     # now you should be able to run:
