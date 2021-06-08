@@ -36,6 +36,8 @@ Hyperbolic-CA |<pre>policies = [ sampled.Hyperbolic-CA ]</pre>
 CRA |<pre>policies = [ linked.CRA ]</pre>
 W-CATinyLFU |<pre>policies = [ sketch.WindowCA ]</pre>
 HC-W-CATinyLFU |<pre>policies = [ sketch.ACA ]</pre>
+ARC |<pre>policies = [ adaptive.Arc ]</pre>
+ARC-CA |<pre>policies = [ adaptive.Arc-CA ]</pre>
 
 For the climbing strategies of `HC-W-CATinyLFU` use the following configs:
 Climber | Policy | Changes
