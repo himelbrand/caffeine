@@ -294,8 +294,10 @@ public final class CraBlock {
      */
     public void remove() {
       sentinel.size -= 1;
-      prev.next = next;
-      next.prev = prev;
+      if (prev != null)
+        prev.next = next;
+      if (next != null)
+        next.prev = prev;
       prev = next = null;
     }
 

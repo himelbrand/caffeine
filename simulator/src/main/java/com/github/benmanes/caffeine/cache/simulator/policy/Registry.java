@@ -21,6 +21,7 @@ import static java.util.Locale.US;
 import static java.util.stream.Collectors.toSet;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
+import com.github.benmanes.caffeine.cache.simulator.policy.adaptive.ArcCaPolicy;
 import com.github.benmanes.caffeine.cache.simulator.policy.linked.*;
 import com.github.benmanes.caffeine.cache.simulator.policy.opt.ClairvoyantLAPolicy;
 import com.github.benmanes.caffeine.cache.simulator.policy.sampled.HyperbolicCA;
@@ -221,6 +222,7 @@ public final class Registry {
     register(ArcPolicy.class, ArcPolicy::new);
     register(CarPolicy.class, CarPolicy::new);
     register(CartPolicy.class, CartPolicy::new);
+    register(ArcCaPolicy.class, ArcCaPolicy::new);
   }
 
   private void registerGreedyDual() {
